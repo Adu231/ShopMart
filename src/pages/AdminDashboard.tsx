@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { BarChart2, Users, Package, TrendingUp, DollarSign, Settings, LogOut, Home, Bell, CheckCircle, XCircle, AlertCircle, Shield, Search, Save, RefreshCw, Lock, Sliders, AlertTriangle, UserX, UserCheck, Trash2, Send, Eye, ShieldAlert, Flag, Wallet, ArrowDownRight, CheckCircle2, User, KeyRound, Building, ShieldCheck, X } from 'lucide-react';
+import { BarChart2, Users, Package, TrendingUp, DollarSign, Settings, LogOut, Home, Bell, CheckCircle, XCircle, AlertCircle, Shield, Search, Save, RefreshCw, Lock, Sliders, AlertTriangle, UserX, UserCheck, Trash2, Send, Eye, ShieldAlert, Flag, Wallet, ArrowDownRight, CheckCircle2, User, KeyRound, Building, ShieldCheck, X, Download, FileSpreadsheet, FileText } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { PRODUCTS } from '@/constants/data';
 import { formatPrice } from '@/lib/utils';
@@ -47,6 +47,19 @@ const INITIAL_WITHDRAWALS = [
   { id: 'WDR-899', date: '2026-07-15', amount: 355000, method: 'UPI (admin@hdfcbank)', status: 'Completed' },
 ];
 
+// Helper function to download CSV file
+const downloadCSV = (filename: string, csvContent: string) => {
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', filename);
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
+
 export default function AdminDashboard() {
   const { user, isAuthenticated, logout, updateUser } = useAuth();
   const navigate = useNavigate();
@@ -54,6 +67,10 @@ export default function AdminDashboard() {
 
   // Products State
   const [productList, setProductList] = useState(PRODUCTS);
+
+  // Mandatory Product Removal Reason Modal State
+  const [pendingRemoval, setPendingRemoval] = useState<{ id: string; name: string; reportId?: string } | null>(null);
+  const [removalReasonInput, setRemovalReasonInput] = useState('');
 
   // Sellers State & Filtering
   const [sellersList, setSellersList] = useState(INITIAL_SELLERS);
@@ -89,7 +106,6 @@ export default function AdminDashboard() {
   const [passwordForm, setPasswordForm] = useState({ current: '', newPw: '', confirmPw: '' });
   const [commissionForm, setCommissionForm] = useState({ rate: 12, minPayout: 5000, autoWithdraw: false });
   const [policyForm, setPolicyForm] = useState({ storeName: 'WoodNest', supportEmail: 'support@woodnest.in', taxRate: 18, maintenance: false });
-  const [savingSettings, setSavingSettings] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) navigate('/login');
@@ -112,6 +128,7 @@ export default function AdminDashboard() {
     { id: 'users', icon: Users, label: 'User Management' },
     { id: 'reports', icon: Flag, label: 'Customer Reports' },
     { id: 'revenue', icon: Wallet, label: 'Revenue & Payouts' },
+    { id: 'exports', icon: FileText, label: 'Reports & Export Portal' },
     { id: 'settings', icon: Settings, label: 'Settings' },
   ];
 
@@ -138,7 +155,54 @@ export default function AdminDashboard() {
     toast.success(`User account "${userName}" permanently removed.`);
   };
 
-  // Report Action Handlers (HYPER-INTERACTIVE & FULLY FUNCTIONAL)
+  // Trigger Product Removal Modal
+  const initiateProductRemoval = (productId: string, productName: string, reportId?: string) => {
+    setPendingRemoval({ id: productId, name: productName, reportId });
+    setRemovalReasonInput('');
+  };
+
+  // Confirm Product Removal with Mandatory Reason
+  const confirmProductRemoval = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pendingRemoval) return;
+    if (!removalReasonInput.trim()) {
+      toast.error('Please enter a valid reason for product removal.');
+      return;
+    }
+
+    const targetProd = productList.find(p => p.id === pendingRemoval.id);
+    const prodName = targetProd?.name || pendingRemoval.name;
+
+    setProductList(prev => prev.filter(p => p.id !== pendingRemoval.id));
+
+    if (pendingRemoval.reportId) {
+      setReportList(prev => prev.map(r => r.id === pendingRemoval.reportId ? {
+        ...r,
+        status: 'Resolved',
+        productUnlisted: true
+      } : r));
+    }
+
+    const removedItem = {
+      id: pendingRemoval.id,
+      name: prodName,
+      category: targetProd?.category || 'Furniture',
+      price: targetProd?.price || 19999,
+      images: targetProd?.images || ['https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=500&q=80'],
+      seller: targetProd?.seller || 'Samsung Electronics / WoodNest Seller',
+      removedDate: new Date().toISOString().split('T')[0],
+      reason: removalReasonInput.trim(),
+    };
+
+    const existing = JSON.parse(localStorage.getItem('shopmart_removed_products') || '[]');
+    localStorage.setItem('shopmart_removed_products', JSON.stringify([removedItem, ...existing]));
+
+    toast.success(`Product "${prodName}" unlisted and removal reason recorded.`);
+    setPendingRemoval(null);
+    setRemovalReasonInput('');
+  };
+
+  // Report Action Handlers
   const handleSendSellerWarning = (reportId: string, sellerName: string) => {
     setReportList(prev => prev.map(r => r.id === reportId ? {
       ...r,
@@ -151,21 +215,6 @@ export default function AdminDashboard() {
     }
 
     toast.success(`Official warning notification sent to seller "${sellerName}" regarding report ${reportId}!`);
-  };
-
-  const handleRemoveProductFromListing = (reportId: string, productId: string, productName: string) => {
-    setProductList(prev => prev.filter(p => p.id !== productId));
-    setReportList(prev => prev.map(r => r.id === reportId ? {
-      ...r,
-      status: 'Resolved',
-      productUnlisted: true
-    } : r));
-
-    if (activeReportModal?.id === reportId) {
-      setActiveReportModal(prev => prev ? { ...prev, status: 'Resolved', productUnlisted: true } : null);
-    }
-
-    toast.success(`Product "${productName}" has been unlisted from store & report ${reportId} resolved!`);
   };
 
   const handleUpdateReportStatus = (reportId: string, newStatus: string) => {
@@ -209,6 +258,51 @@ export default function AdminDashboard() {
       setWithdrawAmount('');
       toast.success(`${formatPrice(amount)} successfully withdrawn to ${payoutMethod}!`);
     }, 800);
+  };
+
+  // Export Handlers for Admin Reports Portal
+  const exportUsersReport = () => {
+    let csv = 'User ID,Full Name,Email,Role,Account Status,Joined Date\n';
+    userList.forEach(u => {
+      csv += `"${u.id}","${u.name.replace(/"/g, '""')}","${u.email}","${u.role}","${u.status}","${u.joined}"\n`;
+    });
+    downloadCSV(`WoodNest_Admin_Users_Report_${Date.now()}.csv`, csv);
+    toast.success('Users & Accounts report exported as CSV!');
+  };
+
+  const exportRevenueReport = () => {
+    let csv = 'Transaction ID,Date,Amount (INR),Payout Method,Status\n';
+    withdrawals.forEach(w => {
+      csv += `"${w.id}","${w.date}","${w.amount}","${w.method}","${w.status}"\n`;
+    });
+    downloadCSV(`WoodNest_Admin_Revenue_Payouts_Report_${Date.now()}.csv`, csv);
+    toast.success('Platform Revenue & Withdrawals report exported as CSV!');
+  };
+
+  const exportSellersReport = () => {
+    let csv = 'Seller ID,Seller Name,Email,Listed Products,Status,Applied Date\n';
+    sellersList.forEach(s => {
+      csv += `"${s.id}","${s.name.replace(/"/g, '""')}","${s.email}","${s.products}","${s.status}","${s.date}"\n`;
+    });
+    downloadCSV(`WoodNest_Admin_Sellers_Audit_Report_${Date.now()}.csv`, csv);
+    toast.success('Seller Approvals audit report exported as CSV!');
+  };
+
+  const exportCustomerReportsCSV = () => {
+    let csv = 'Report ID,Customer Name,Email,Product,Seller,Complaint Reason,Priority,Status,Warning Sent,Product Unlisted\n';
+    reportList.forEach(r => {
+      csv += `"${r.id}","${r.customer}","${r.email}","${r.product.replace(/"/g, '""')}","${r.seller}","${r.reason.replace(/"/g, '""')}","${r.priority}","${r.status}","${r.warningSent}","${r.productUnlisted}"\n`;
+    });
+    downloadCSV(`WoodNest_Admin_Customer_Complaints_Report_${Date.now()}.csv`, csv);
+    toast.success('Customer Complaints & Quality audit report exported as CSV!');
+  };
+
+  const exportMasterSystemPackage = () => {
+    exportUsersReport();
+    setTimeout(() => exportRevenueReport(), 300);
+    setTimeout(() => exportSellersReport(), 600);
+    setTimeout(() => exportCustomerReportsCSV(), 900);
+    toast.success('All platform data reports package exported successfully!');
   };
 
   // Settings Save Handler
@@ -470,12 +564,6 @@ export default function AdminDashboard() {
                     ))}
                   </tbody>
                 </table>
-
-                {filteredSellers.length === 0 && (
-                  <div className="p-8 text-center text-xs text-muted-foreground">
-                    No sellers found matching the "{sellerStatusFilter}" filter.
-                  </div>
-                )}
               </div>
             </div>
           )}
@@ -507,7 +595,7 @@ export default function AdminDashboard() {
                         <td className="px-4 py-3 text-muted-foreground max-w-[140px] truncate">{p.seller}</td>
                         <td className="px-4 py-3">
                           <button
-                            onClick={() => handleRemoveProductFromListing(p.id, p.name, p.name)}
+                            onClick={() => initiateProductRemoval(p.id, p.name)}
                             className="flex items-center gap-1 text-xs bg-rose-100 dark:bg-rose-950/40 text-rose-600 hover:bg-rose-200 px-2.5 py-1 rounded font-semibold transition-colors cursor-pointer"
                           >
                             <Trash2 size={12} /> Remove
@@ -628,7 +716,7 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* Customer Reports Section (FULLY FUNCTIONAL BUTTONS: Warn Seller, Unlist Item, Resolve) */}
+          {/* Customer Reports Section */}
           {activeSection === 'reports' && (
             <div className="space-y-5">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -638,7 +726,7 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Priority Filter Tabs (High, Medium, Low) */}
+              {/* Priority Filter Tabs */}
               <div className="flex gap-2 bg-card p-1.5 rounded-xl border border-border">
                 {['All', 'High', 'Medium', 'Low'].map(prio => (
                   <button
@@ -694,7 +782,6 @@ export default function AdminDashboard() {
                           </span>
                         </td>
                         <td className="px-4 py-3.5 text-right space-x-1.5">
-                          {/* View Details Modal Trigger */}
                           <button
                             onClick={() => setActiveReportModal(rep)}
                             className="p-1.5 bg-muted hover:bg-muted/80 rounded text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-[11px]"
@@ -703,7 +790,6 @@ export default function AdminDashboard() {
                             <Eye size={13} />
                           </button>
 
-                          {/* 1. Warn Seller Button */}
                           <button
                             onClick={() => handleSendSellerWarning(rep.id, rep.seller)}
                             disabled={rep.warningSent}
@@ -717,9 +803,8 @@ export default function AdminDashboard() {
                             <Send size={12} /> {rep.warningSent ? 'Warning Sent ✓' : 'Warn Seller'}
                           </button>
 
-                          {/* 2. Unlist Item Button */}
                           <button
-                            onClick={() => handleRemoveProductFromListing(rep.id, rep.productId, rep.product)}
+                            onClick={() => initiateProductRemoval(rep.productId, rep.product, rep.id)}
                             disabled={rep.productUnlisted}
                             className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-all inline-flex items-center gap-1 cursor-pointer ${
                               rep.productUnlisted
@@ -731,7 +816,6 @@ export default function AdminDashboard() {
                             <Trash2 size={12} /> {rep.productUnlisted ? 'Unlisted ✓' : 'Unlist Item'}
                           </button>
 
-                          {/* 3. Resolve Button */}
                           <button
                             onClick={() => handleUpdateReportStatus(rep.id, rep.status === 'Resolved' ? 'Open' : 'Resolved')}
                             className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-all inline-flex items-center gap-1 cursor-pointer ${
@@ -747,88 +831,175 @@ export default function AdminDashboard() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          )}
 
-                {filteredReports.length === 0 && (
-                  <div className="p-8 text-center text-xs text-muted-foreground">
-                    No customer reports match the "{reportPriorityFilter}" priority filter.
-                  </div>
-                )}
+          {/* Platform Reports & Data Export Portal Section (NEW SECTION) */}
+          {activeSection === 'exports' && (
+            <div className="space-y-6">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <h1 className="text-xl font-bold text-foreground">Platform Reports & Data Export Portal</h1>
+                  <p className="text-xs text-muted-foreground">Download comprehensive platform analytics, revenue records, seller audits, and user lists in CSV format</p>
+                </div>
+
+                <button
+                  onClick={exportMasterSystemPackage}
+                  className="flex items-center gap-2 bg-[#2874F0] hover:bg-blue-600 text-white text-xs px-4 py-2.5 rounded-xl font-bold shadow-md transition-all cursor-pointer shrink-0"
+                >
+                  <Download size={16} /> Export Master Platform Package (All CSVs)
+                </button>
               </div>
 
-              {/* Full Report Details Modal */}
-              {activeReportModal && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                  <div className="bg-card border border-border rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
-                    <div className="flex items-center justify-between border-b border-border pb-3">
+              {/* Individual Export Cards Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {/* Card 1: Users & Accounts */}
+                <div className="bg-card rounded-2xl p-5 border border-border shadow-sm space-y-4">
+                  <div className="flex items-center justify-between border-b border-border pb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 bg-blue-50 dark:bg-blue-950/40 text-[#2874F0] rounded-xl">
+                        <Users size={20} />
+                      </div>
                       <div>
-                        <h3 className="font-bold text-lg text-foreground">Report Ticket ({activeReportModal.id})</h3>
-                        <p className="text-xs text-muted-foreground">Submitted on {activeReportModal.date}</p>
+                        <h3 className="font-bold text-sm text-foreground">Users & Accounts Audit Report</h3>
+                        <p className="text-[11px] text-muted-foreground">{userList.length} total platform accounts</p>
                       </div>
-                      <button onClick={() => setActiveReportModal(null)} className="text-muted-foreground hover:text-foreground">
-                        <X size={20} />
-                      </button>
-                    </div>
-
-                    <div className="space-y-3 text-xs">
-                      <div className="grid grid-cols-2 gap-3 bg-muted p-3 rounded-lg">
-                        <div>
-                          <span className="text-muted-foreground block">Customer:</span>
-                          <span className="font-semibold text-foreground">{activeReportModal.customer}</span>
-                          <span className="text-muted-foreground block text-[10px]">{activeReportModal.email}</span>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground block">Reported Seller:</span>
-                          <span className="font-semibold text-foreground">{activeReportModal.seller}</span>
-                        </div>
-                      </div>
-
-                      <div>
-                        <span className="text-muted-foreground block mb-0.5">Reported Product Name:</span>
-                        <span className="font-bold text-sm text-[#2874F0]">{activeReportModal.product}</span>
-                      </div>
-
-                      <div className="bg-rose-50 dark:bg-rose-950/30 p-3 rounded-lg border border-rose-200 dark:border-rose-900">
-                        <span className="text-rose-800 dark:text-rose-300 font-bold block mb-1">Customer Complaint Reason:</span>
-                        <p className="text-gray-700 dark:text-gray-300 leading-relaxed">{activeReportModal.reason}</p>
-                      </div>
-
-                      <div className="flex justify-between items-center pt-2">
-                        <div>
-                          <span className="text-muted-foreground block">Priority Level:</span>
-                          <span className="font-bold text-rose-600">{activeReportModal.priority}</span>
-                        </div>
-                        <div className="text-right">
-                          <span className="text-muted-foreground block">Current Status:</span>
-                          <span className="font-bold text-emerald-600">{activeReportModal.status}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-2 pt-3 border-t border-border">
-                      <button
-                        onClick={() => handleSendSellerWarning(activeReportModal.id, activeReportModal.seller)}
-                        disabled={activeReportModal.warningSent}
-                        className="bg-amber-500 hover:bg-amber-600 disabled:opacity-60 text-white font-bold py-2 rounded-lg text-xs flex items-center justify-center gap-1 transition-colors cursor-pointer"
-                      >
-                        <Send size={12} /> {activeReportModal.warningSent ? 'Warning Sent' : 'Warn Seller'}
-                      </button>
-                      <button
-                        onClick={() => handleRemoveProductFromListing(activeReportModal.id, activeReportModal.productId, activeReportModal.product)}
-                        disabled={activeReportModal.productUnlisted}
-                        className="bg-rose-600 hover:bg-rose-700 disabled:opacity-60 text-white font-bold py-2 rounded-lg text-xs flex items-center justify-center gap-1 transition-colors cursor-pointer"
-                      >
-                        <Trash2 size={12} /> {activeReportModal.productUnlisted ? 'Unlisted' : 'Unlist Item'}
-                      </button>
-                      <button
-                        onClick={() => handleUpdateReportStatus(activeReportModal.id, activeReportModal.status === 'Resolved' ? 'Open' : 'Resolved')}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-lg text-xs flex items-center justify-center gap-1 transition-colors cursor-pointer"
-                      >
-                        <CheckCircle size={12} /> {activeReportModal.status === 'Resolved' ? 'Resolved ✓' : 'Resolve'}
-                      </button>
                     </div>
                   </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Export full registry of platform user accounts including customer profiles, seller accounts, roles, registration dates, and account status flags.
+                  </p>
+                  <button
+                    onClick={exportUsersReport}
+                    className="w-full bg-muted hover:bg-muted/80 text-foreground font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                  >
+                    <Download size={14} /> Export Users Report (CSV)
+                  </button>
                 </div>
-              )}
+
+                {/* Card 2: Revenue & Commission */}
+                <div className="bg-card rounded-2xl p-5 border border-border shadow-sm space-y-4">
+                  <div className="flex items-center justify-between border-b border-border pb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 rounded-xl">
+                        <DollarSign size={20} />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-sm text-foreground">Revenue & Commission Payouts Report</h3>
+                        <p className="text-[11px] text-muted-foreground">{formatPrice(totalEarned)} total revenue</p>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Export platform financial audit reports including commission fees collected, processed bank withdrawals, and active wallet balances.
+                  </p>
+                  <button
+                    onClick={exportRevenueReport}
+                    className="w-full bg-muted hover:bg-muted/80 text-foreground font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                  >
+                    <Download size={14} /> Export Revenue Report (CSV)
+                  </button>
+                </div>
+
+                {/* Card 3: Seller Approvals */}
+                <div className="bg-card rounded-2xl p-5 border border-border shadow-sm space-y-4">
+                  <div className="flex items-center justify-between border-b border-border pb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 bg-amber-50 dark:bg-amber-950/40 text-amber-600 rounded-xl">
+                        <Building size={20} />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-sm text-foreground">Seller Approvals & Compliance Audit</h3>
+                        <p className="text-[11px] text-muted-foreground">{sellersList.length} seller profiles</p>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Export detailed records of approved, pending, and blocked sellers, along with listed product counts and application timestamps.
+                  </p>
+                  <button
+                    onClick={exportSellersReport}
+                    className="w-full bg-muted hover:bg-muted/80 text-foreground font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                  >
+                    <Download size={14} /> Export Sellers Audit (CSV)
+                  </button>
+                </div>
+
+                {/* Card 4: Customer Complaints */}
+                <div className="bg-card rounded-2xl p-5 border border-border shadow-sm space-y-4">
+                  <div className="flex items-center justify-between border-b border-border pb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 bg-rose-50 dark:bg-rose-950/40 text-rose-600 rounded-xl">
+                        <Flag size={20} />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-sm text-foreground">Customer Quality Complaints & Enforcement</h3>
+                        <p className="text-[11px] text-muted-foreground">{reportList.length} filed tickets</p>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Export quality complaints audit log including customer reasons, priority levels, seller warnings sent, and product unlisting actions.
+                  </p>
+                  <button
+                    onClick={exportCustomerReportsCSV}
+                    className="w-full bg-muted hover:bg-muted/80 text-foreground font-bold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                  >
+                    <Download size={14} /> Export Complaints Audit (CSV)
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Mandatory Product Removal Reason Modal */}
+          {pendingRemoval && (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+              <div className="bg-card border border-border rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+                <div className="flex items-center justify-between border-b border-border pb-3">
+                  <h3 className="font-bold text-base text-foreground flex items-center gap-2">
+                    <AlertTriangle className="text-rose-500" size={18} /> Confirm Product Unlisting
+                  </h3>
+                  <button onClick={() => setPendingRemoval(null)} className="text-muted-foreground hover:text-foreground">
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <p className="text-xs text-muted-foreground">
+                  You are about to remove <strong className="text-foreground">{pendingRemoval.name}</strong> from the store. Please specify the official reason below (this will be logged for the seller).
+                </p>
+
+                <form onSubmit={confirmProductRemoval} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-foreground mb-1.5">Removal Reason / Admin Note</label>
+                    <textarea
+                      rows={3}
+                      value={removalReasonInput}
+                      onChange={e => setRemovalReasonInput(e.target.value)}
+                      required
+                      placeholder="e.g. Failed safety inspection, counterfeit wood veneer, or severe customer damage reports..."
+                      className="w-full bg-background border border-border rounded-xl p-3 text-xs text-foreground outline-none focus:ring-2 focus:ring-rose-500/30"
+                    />
+                  </div>
+
+                  <div className="flex gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setPendingRemoval(null)}
+                      className="flex-1 bg-muted hover:bg-muted/80 text-foreground font-semibold py-2.5 rounded-xl text-xs transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="flex-1 bg-rose-600 hover:bg-rose-700 text-white font-bold py-2.5 rounded-xl text-xs transition-colors shadow-md"
+                    >
+                      Confirm & Unlist Item
+                    </button>
+                  </div>
+                </form>
+              </div>
             </div>
           )}
 
