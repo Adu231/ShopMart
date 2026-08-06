@@ -1,73 +1,94 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { BarChart2, Users, Package, TrendingUp, DollarSign, Settings, LogOut, Home, Bell, CheckCircle, XCircle, AlertCircle, Shield, Search, Save, RefreshCw, Lock, Sliders, AlertTriangle, UserX, UserCheck, Trash2, Send, Eye, ShieldAlert, Flag } from 'lucide-react';
+import { BarChart2, Users, Package, TrendingUp, DollarSign, Settings, LogOut, Home, Bell, CheckCircle, XCircle, AlertCircle, Shield, Search, Save, RefreshCw, Lock, Sliders, AlertTriangle, UserX, UserCheck, Trash2, Send, Eye, ShieldAlert, Flag, Wallet, ArrowDownRight, CheckCircle2, User, KeyRound, Building, ShieldCheck, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { PRODUCTS } from '@/constants/data';
 import { formatPrice } from '@/lib/utils';
 import { toast } from 'sonner';
 
-const PENDING_SELLERS = [
-  { id: 's1', name: 'TechZone India', email: 'techzone@seller.com', date: '2026-07-28', products: 12 },
-  { id: 's2', name: 'Fashion Hub', email: 'fashionhub@seller.com', date: '2026-08-01', products: 35 },
-  { id: 's3', name: 'Home Essentials', email: 'homeessentials@seller.com', date: '2026-08-03', products: 8 },
+// Comprehensive Sellers Data
+const INITIAL_SELLERS = [
+  { id: 's1', name: 'TechZone India', email: 'techzone@seller.com', date: '2026-07-28', products: 12, status: 'Pending' },
+  { id: 's2', name: 'Fashion Hub', email: 'fashionhub@seller.com', date: '2026-08-01', products: 35, status: 'Pending' },
+  { id: 's3', name: 'Home Essentials', email: 'homeessentials@seller.com', date: '2026-08-03', products: 8, status: 'Pending' },
+  { id: 's4', name: 'Woodcraft Hub', email: 'woodcraft@seller.com', date: '2026-05-10', products: 42, status: 'Active' },
+  { id: 's5', name: 'Crafty Timber Co', email: 'craftytimber@seller.com', date: '2026-04-15', products: 28, status: 'Active' },
+  { id: 's6', name: 'Apex Furnishings', email: 'apex@seller.com', date: '2026-03-22', products: 5, status: 'Blocked' },
 ];
 
 const RECENT_ACTIVITY = [
   { type: 'report', msg: 'Customer reported product quality issue on #p1', time: '10 min ago', color: 'text-red-500' },
   { type: 'seller', msg: 'Seller "TechZone India" awaiting approval', time: '15 min ago', color: 'text-orange-600' },
+  { type: 'withdrawal', msg: 'Withdrawal of ₹1,50,000 processed to HDFC Bank', time: '30 min ago', color: 'text-green-600' },
   { type: 'user', msg: 'New customer account created: Siddharth R.', time: '45 min ago', color: 'text-purple-600' },
   { type: 'revenue', msg: 'Daily revenue target achieved: ₹2.4L', time: '2 hr ago', color: 'text-green-600' },
-  { type: 'user', msg: 'User account #u5 suspended due to policy violation', time: '3 hr ago', color: 'text-[#2874F0]' },
 ];
 
 const INITIAL_USERS = [
-  { id: 'u1', name: 'Priya Customer', email: 'customer@demo.com', role: 'customer', status: 'Active', joined: '2026-01-15', ordersCount: 12 },
-  { id: 'u2', name: 'Rahul Seller', email: 'seller@demo.com', role: 'seller', status: 'Active', joined: '2026-02-10', ordersCount: 85 },
-  { id: 'u3', name: 'Admin User', email: 'admin@demo.com', role: 'admin', status: 'Active', joined: '2026-01-01', ordersCount: 0 },
-  { id: 'u4', name: 'Vikram Mehta', email: 'vikram@example.com', role: 'customer', status: 'Active', joined: '2026-04-20', ordersCount: 3 },
-  { id: 'u5', name: 'Siddharth Rao', email: 'siddharth@example.com', role: 'customer', status: 'Suspended', joined: '2026-05-12', ordersCount: 1 },
-  { id: 'u6', name: 'Crafty Timber Co', email: 'craftytimber@seller.com', role: 'seller', status: 'Active', joined: '2026-06-01', ordersCount: 42 },
+  { id: 'u1', name: 'Priya Customer', email: 'customer@demo.com', role: 'customer', status: 'Active', joined: '2026-01-15' },
+  { id: 'u2', name: 'Rahul Seller', email: 'seller@demo.com', role: 'seller', status: 'Active', joined: '2026-02-10' },
+  { id: 'u3', name: 'Admin User', email: 'admin@demo.com', role: 'admin', status: 'Active', joined: '2026-01-01' },
+  { id: 'u4', name: 'Vikram Mehta', email: 'vikram@example.com', role: 'customer', status: 'Active', joined: '2026-04-20' },
+  { id: 'u5', name: 'Siddharth Rao', email: 'siddharth@example.com', role: 'customer', status: 'Suspended', joined: '2026-05-12' },
+  { id: 'u6', name: 'Crafty Timber Co', email: 'craftytimber@seller.com', role: 'seller', status: 'Active', joined: '2026-06-01' },
 ];
 
 const INITIAL_REPORTS = [
-  { id: 'REP-101', customer: 'Ananya Roy', email: 'ananya@example.com', product: 'Solid Teak 6-Seater Dining Set', productId: 'p1', seller: 'Woodcraft Hub', reason: 'Cracked leg joint delivered', priority: 'High', date: '2026-08-05', status: 'Open' },
-  { id: 'REP-102', customer: 'Kavita Singh', email: 'kavita@example.com', product: 'Modern Velvet 3-Seater Sofa', productId: 'p2', seller: 'Home Essentials', reason: 'Upholstery color mismatch & stain', priority: 'Medium', date: '2026-08-04', status: 'In Progress' },
-  { id: 'REP-103', customer: 'Amit Patel', email: 'amit@example.com', product: 'Ergonomic Sheesham Study Table', productId: 'p3', seller: 'TechZone India', reason: 'Delayed assembly service (>5 days)', priority: 'Low', date: '2026-08-03', status: 'Resolved' },
-  { id: 'REP-104', customer: 'Rohan Sharma', email: 'rohan@example.com', product: 'King Size Storage Teak Bed', productId: 'p4', seller: 'Crafty Timber Co', reason: 'Suspected fake wood veneer coating', priority: 'High', date: '2026-08-02', status: 'Open' },
+  { id: 'REP-101', customer: 'Ananya Roy', email: 'ananya@example.com', product: 'Solid Teak 6-Seater Dining Set', productId: 'p1', seller: 'Woodcraft Hub', reason: 'Cracked leg joint delivered', priority: 'High', date: '2026-08-05', status: 'Open', warningSent: false, productUnlisted: false },
+  { id: 'REP-102', customer: 'Kavita Singh', email: 'kavita@example.com', product: 'Modern Velvet 3-Seater Sofa', productId: 'p2', seller: 'Home Essentials', reason: 'Upholstery color mismatch & stain', priority: 'Medium', date: '2026-08-04', status: 'In Progress', warningSent: true, productUnlisted: false },
+  { id: 'REP-103', customer: 'Amit Patel', email: 'amit@example.com', product: 'Ergonomic Sheesham Study Table', productId: 'p3', seller: 'TechZone India', reason: 'Delayed assembly service (>5 days)', priority: 'Low', date: '2026-08-03', status: 'Resolved', warningSent: false, productUnlisted: false },
+  { id: 'REP-104', customer: 'Rohan Sharma', email: 'rohan@example.com', product: 'King Size Storage Teak Bed', productId: 'p4', seller: 'Crafty Timber Co', reason: 'Suspected fake wood veneer coating', priority: 'High', date: '2026-08-02', status: 'Open', warningSent: false, productUnlisted: false },
+  { id: 'REP-105', customer: 'Deepak V.', email: 'deepak@example.com', product: 'Solid Oak Center Table', productId: 'p5', seller: 'Apex Furnishings', reason: 'Scratched glass top on arrival', priority: 'Low', date: '2026-08-01', status: 'Open', warningSent: false, productUnlisted: false },
+];
+
+const INITIAL_WITHDRAWALS = [
+  { id: 'WDR-901', date: '2026-08-06', amount: 150000, method: 'HDFC Bank (A/C ...8812)', status: 'Completed' },
+  { id: 'WDR-900', date: '2026-07-28', amount: 250000, method: 'ICICI Bank (A/C ...4019)', status: 'Completed' },
+  { id: 'WDR-899', date: '2026-07-15', amount: 355000, method: 'UPI (admin@hdfcbank)', status: 'Completed' },
 ];
 
 export default function AdminDashboard() {
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated, logout, updateUser } = useAuth();
   const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState('overview');
 
   // Products State
   const [productList, setProductList] = useState(PRODUCTS);
 
+  // Sellers State & Filtering
+  const [sellersList, setSellersList] = useState(INITIAL_SELLERS);
+  const [sellerStatusFilter, setSellerStatusFilter] = useState('All');
+
   // User Management State
   const [userList, setUserList] = useState(INITIAL_USERS);
   const [userRoleFilter, setUserRoleFilter] = useState('All');
   const [userSearch, setUserSearch] = useState('');
 
-  // Report Management State
+  // Report Management State & Action Details
   const [reportList, setReportList] = useState(INITIAL_REPORTS);
-  const [reportStatusFilter, setReportStatusFilter] = useState('All');
-  const [selectedReport, setSelectedReport] = useState<typeof INITIAL_REPORTS[0] | null>(null);
+  const [reportPriorityFilter, setReportPriorityFilter] = useState('All');
+  const [activeReportModal, setActiveReportModal] = useState<typeof INITIAL_REPORTS[0] | null>(null);
 
-  // Settings State
-  const [settings, setSettings] = useState({
-    storeName: 'WoodNest',
-    supportEmail: 'support@woodnest.in',
-    tollFreePhone: '1800-202-9898',
-    commissionRate: 12,
-    freeShippingThreshold: 1999,
-    taxRate: 18,
-    autoApproveSellers: false,
-    require2FA: true,
-    maintenanceMode: false,
-    enableSMSNotifications: true,
+  // Revenue & Withdrawal State
+  const [totalEarned, setTotalEarned] = useState(1240000);
+  const [availableBalance, setAvailableBalance] = useState(485000);
+  const [totalWithdrawn, setTotalWithdrawn] = useState(755000);
+  const [withdrawals, setWithdrawals] = useState(INITIAL_WITHDRAWALS);
+  const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [payoutMethod, setPayoutMethod] = useState('HDFC Bank (A/C ...8812)');
+  const [withdrawing, setWithdrawing] = useState(false);
+
+  // Settings State & Sub-Sections
+  const [activeSettingsTab, setActiveSettingsTab] = useState<'profile' | 'security' | 'commission' | 'policies'>('profile');
+  const [profileForm, setProfileForm] = useState({
+    name: user?.name || 'Admin User',
+    email: user?.email || 'admin@demo.com',
+    phone: '1800-202-9898',
   });
 
+  const [passwordForm, setPasswordForm] = useState({ current: '', newPw: '', confirmPw: '' });
+  const [commissionForm, setCommissionForm] = useState({ rate: 12, minPayout: 5000, autoWithdraw: false });
+  const [policyForm, setPolicyForm] = useState({ storeName: 'WoodNest', supportEmail: 'support@woodnest.in', taxRate: 18, maintenance: false });
   const [savingSettings, setSavingSettings] = useState(false);
 
   useEffect(() => {
@@ -77,11 +98,11 @@ export default function AdminDashboard() {
 
   const stats = [
     { icon: DollarSign, label: 'Platform Revenue', value: '₹1.24 Cr', change: '+18.2%', bg: 'bg-green-50 dark:bg-green-950/30', color: 'text-green-600' },
+    { icon: Wallet, label: 'Available Commission', value: formatPrice(availableBalance), change: 'Ready for withdrawal', bg: 'bg-emerald-50 dark:bg-emerald-950/30', color: 'text-emerald-600' },
     { icon: Users, label: 'Total Users', value: userList.length.toString(), change: '+342 this week', bg: 'bg-blue-50 dark:bg-blue-950/30', color: 'text-[#2874F0]' },
-    { icon: AlertTriangle, label: 'Customer Reports', value: reportList.filter(r => r.status === 'Open').length.toString(), change: 'Requires Action', bg: 'bg-rose-50 dark:bg-rose-950/30', color: 'text-rose-600' },
+    { icon: AlertTriangle, label: 'High Priority Reports', value: reportList.filter(r => r.priority === 'High' && r.status === 'Open').length.toString(), change: 'Requires Action', bg: 'bg-rose-50 dark:bg-rose-950/30', color: 'text-rose-600' },
     { icon: Package, label: 'Active Products', value: productList.length.toString(), change: '+8 today', bg: 'bg-orange-50 dark:bg-orange-950/30', color: 'text-orange-600' },
-    { icon: TrendingUp, label: 'Active Sellers', value: '1,247', change: '+12 pending', bg: 'bg-teal-50 dark:bg-teal-950/30', color: 'text-teal-600' },
-    { icon: Shield, label: 'Commission Earned', value: '₹12.4L', change: '+8.5% MoM', bg: 'bg-red-50 dark:bg-red-950/30', color: 'text-red-600' },
+    { icon: TrendingUp, label: 'Active Sellers', value: sellersList.filter(s => s.status === 'Active').length.toString(), change: `${sellersList.filter(s => s.status === 'Pending').length} pending`, bg: 'bg-teal-50 dark:bg-teal-950/30', color: 'text-teal-600' },
   ];
 
   const navItems = [
@@ -90,8 +111,15 @@ export default function AdminDashboard() {
     { id: 'products', icon: Package, label: 'Products' },
     { id: 'users', icon: Users, label: 'User Management' },
     { id: 'reports', icon: Flag, label: 'Customer Reports' },
+    { id: 'revenue', icon: Wallet, label: 'Revenue & Payouts' },
     { id: 'settings', icon: Settings, label: 'Settings' },
   ];
+
+  // Seller Action Handlers
+  const handleSellerAction = (sellerId: string, status: 'Active' | 'Blocked') => {
+    setSellersList(prev => prev.map(s => s.id === sellerId ? { ...s, status } : s));
+    toast.success(`Seller status updated to "${status}"`);
+  };
 
   // User Action Handlers
   const handleToggleUserStatus = (userId: string) => {
@@ -110,35 +138,105 @@ export default function AdminDashboard() {
     toast.success(`User account "${userName}" permanently removed.`);
   };
 
-  const handleChangeUserRole = (userId: string, newRole: string) => {
-    setUserList(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u));
-    toast.success(`User role updated to ${newRole}`);
+  // Report Action Handlers (HYPER-INTERACTIVE & FULLY FUNCTIONAL)
+  const handleSendSellerWarning = (reportId: string, sellerName: string) => {
+    setReportList(prev => prev.map(r => r.id === reportId ? {
+      ...r,
+      warningSent: true,
+      status: r.status === 'Open' ? 'In Progress' : r.status
+    } : r));
+
+    if (activeReportModal?.id === reportId) {
+      setActiveReportModal(prev => prev ? { ...prev, warningSent: true, status: prev.status === 'Open' ? 'In Progress' : prev.status } : null);
+    }
+
+    toast.success(`Official warning notification sent to seller "${sellerName}" regarding report ${reportId}!`);
   };
 
-  // Report Action Handlers
-  const handleSendSellerWarning = (sellerName: string, reportId: string) => {
-    toast.info(`Official policy warning notification sent to seller "${sellerName}" regarding report ${reportId}.`);
-  };
-
-  const handleRemoveProductFromListing = (productId: string, productName: string) => {
+  const handleRemoveProductFromListing = (reportId: string, productId: string, productName: string) => {
     setProductList(prev => prev.filter(p => p.id !== productId));
-    setReportList(prev => prev.map(r => r.productId === productId ? { ...r, status: 'Resolved' } : r));
-    toast.success(`Product "${productName}" has been removed from platform listings!`);
+    setReportList(prev => prev.map(r => r.id === reportId ? {
+      ...r,
+      status: 'Resolved',
+      productUnlisted: true
+    } : r));
+
+    if (activeReportModal?.id === reportId) {
+      setActiveReportModal(prev => prev ? { ...prev, status: 'Resolved', productUnlisted: true } : null);
+    }
+
+    toast.success(`Product "${productName}" has been unlisted from store & report ${reportId} resolved!`);
   };
 
-  const handleUpdateReportStatus = (reportId: string, status: string) => {
-    setReportList(prev => prev.map(r => r.id === reportId ? { ...r, status } : r));
-    toast.success(`Report ${reportId} marked as ${status}`);
+  const handleUpdateReportStatus = (reportId: string, newStatus: string) => {
+    setReportList(prev => prev.map(r => r.id === reportId ? { ...r, status: newStatus } : r));
+
+    if (activeReportModal?.id === reportId) {
+      setActiveReportModal(prev => prev ? { ...prev, status: newStatus } : null);
+    }
+
+    toast.success(`Report ${reportId} marked as ${newStatus}!`);
   };
 
-  const handleSaveSettings = (e: React.FormEvent) => {
+  // Revenue Withdrawal Handler
+  const handleWithdrawRevenue = (e: React.FormEvent) => {
     e.preventDefault();
-    setSavingSettings(true);
+    const amount = Number(withdrawAmount);
+    if (!amount || amount <= 0) {
+      toast.error('Please enter a valid withdrawal amount.');
+      return;
+    }
+    if (amount > availableBalance) {
+      toast.error(`Insufficient balance. Maximum available: ${formatPrice(availableBalance)}`);
+      return;
+    }
+
+    setWithdrawing(true);
     setTimeout(() => {
-      setSavingSettings(false);
-      toast.success('Admin Console Settings saved successfully!');
-    }, 600);
+      setWithdrawing(false);
+      setAvailableBalance(prev => prev - amount);
+      setTotalWithdrawn(prev => prev + amount);
+
+      const newTx = {
+        id: `WDR-${Math.floor(100 + Math.random() * 900)}`,
+        date: new Date().toISOString().split('T')[0],
+        amount,
+        method: payoutMethod,
+        status: 'Completed',
+      };
+
+      setWithdrawals(prev => [newTx, ...prev]);
+      setWithdrawAmount('');
+      toast.success(`${formatPrice(amount)} successfully withdrawn to ${payoutMethod}!`);
+    }, 800);
   };
+
+  // Settings Save Handler
+  const handleSaveProfile = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateUser({ name: profileForm.name, email: profileForm.email });
+    toast.success('Admin profile updated successfully!');
+  };
+
+  const handleSavePassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passwordForm.newPw.length < 6) {
+      toast.error('New password must be at least 6 characters.');
+      return;
+    }
+    if (passwordForm.newPw !== passwordForm.confirmPw) {
+      toast.error('New passwords do not match.');
+      return;
+    }
+    toast.success('Admin password updated successfully!');
+    setPasswordForm({ current: '', newPw: '', confirmPw: '' });
+  };
+
+  // Filtered Sellers
+  const filteredSellers = sellersList.filter(s => {
+    if (sellerStatusFilter === 'All') return true;
+    return s.status.toLowerCase() === sellerStatusFilter.toLowerCase();
+  });
 
   // Filtered Users
   const filteredUsers = userList.filter(u => {
@@ -149,9 +247,10 @@ export default function AdminDashboard() {
     return matchesRole && matchesSearch;
   });
 
-  // Filtered Reports
+  // Filtered Reports (Priority Filter: High, Medium, Low)
   const filteredReports = reportList.filter(r => {
-    return reportStatusFilter === 'All' || r.status.toLowerCase() === reportStatusFilter.toLowerCase();
+    if (reportPriorityFilter === 'All') return true;
+    return r.priority.toLowerCase() === reportPriorityFilter.toLowerCase();
   });
 
   return (
@@ -194,12 +293,12 @@ export default function AdminDashboard() {
               <Icon size={16} /> {label}
               {id === 'sellers' && (
                 <span className="ml-auto bg-orange-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-bold">
-                  {PENDING_SELLERS.length}
+                  {sellersList.filter(s => s.status === 'Pending').length}
                 </span>
               )}
-              {id === 'reports' && reportList.filter(r => r.status === 'Open').length > 0 && (
+              {id === 'reports' && (
                 <span className="ml-auto bg-rose-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-bold">
-                  {reportList.filter(r => r.status === 'Open').length}
+                  {reportList.filter(r => r.priority === 'High' && r.status === 'Open').length}
                 </span>
               )}
             </button>
@@ -226,7 +325,7 @@ export default function AdminDashboard() {
                 <h1 className="text-xl font-bold text-foreground">Platform Overview</h1>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Bell size={16} />
-                  <span>{PENDING_SELLERS.length} pending seller approvals</span>
+                  <span>{sellersList.filter(s => s.status === 'Pending').length} pending seller approvals</span>
                 </div>
               </div>
 
@@ -268,7 +367,7 @@ export default function AdminDashboard() {
                     <h2 className="text-sm font-semibold text-foreground">Pending Seller Approvals</h2>
                   </div>
                   <div className="divide-y divide-border">
-                    {PENDING_SELLERS.map(s => (
+                    {sellersList.filter(s => s.status === 'Pending').map(s => (
                       <div key={s.id} className="px-4 py-3 flex items-center gap-3">
                         <div className="w-8 h-8 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center text-sm font-bold text-orange-600">
                           {s.name.charAt(0)}
@@ -279,13 +378,13 @@ export default function AdminDashboard() {
                         </div>
                         <div className="flex gap-1.5">
                           <button
-                            onClick={() => toast.success(`Approved seller "${s.name}"`)}
+                            onClick={() => handleSellerAction(s.id, 'Active')}
                             className="p-1.5 bg-green-100 dark:bg-green-900/30 text-green-600 rounded hover:bg-green-200 transition-colors"
                           >
                             <CheckCircle size={14} />
                           </button>
                           <button
-                            onClick={() => toast.error(`Rejected seller "${s.name}"`)}
+                            onClick={() => handleSellerAction(s.id, 'Blocked')}
                             className="p-1.5 bg-red-100 dark:bg-red-900/30 text-red-600 rounded hover:bg-red-200 transition-colors"
                           >
                             <XCircle size={14} />
@@ -302,55 +401,81 @@ export default function AdminDashboard() {
           {/* Seller Approvals Section */}
           {activeSection === 'sellers' && (
             <div>
-              <h1 className="text-xl font-bold text-foreground mb-5">Seller Management</h1>
+              <h1 className="text-xl font-bold text-foreground mb-5">Seller Management ({filteredSellers.length})</h1>
               <div className="bg-card rounded-xl shadow-sm border border-border overflow-hidden">
                 <div className="p-4 border-b border-border flex gap-2">
-                  {['All', 'Pending', 'Active', 'Blocked'].map(f => (
+                  {['All', 'Pending', 'Active', 'Blocked'].map(filter => (
                     <button
-                      key={f}
-                      className={`text-xs px-3 py-1.5 rounded-full font-medium ${
-                        f === 'Pending' ? 'bg-orange-100 text-orange-700' : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                      key={filter}
+                      onClick={() => setSellerStatusFilter(filter)}
+                      className={`text-xs px-3.5 py-1.5 rounded-full font-semibold transition-colors ${
+                        sellerStatusFilter === filter
+                          ? 'bg-[#2874F0] text-white shadow-sm'
+                          : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground'
                       }`}
                     >
-                      {f}
+                      {filter}
                     </button>
                   ))}
                 </div>
                 <table className="w-full text-sm">
                   <thead className="bg-muted">
                     <tr>
-                      {['Seller', 'Email', 'Products', 'Applied', 'Action'].map(h => (
+                      {['Seller Name', 'Email', 'Listed Products', 'Status', 'Applied Date', 'Action'].map(h => (
                         <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase">{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {PENDING_SELLERS.map(s => (
+                    {filteredSellers.map(s => (
                       <tr key={s.id} className="hover:bg-muted/50">
                         <td className="px-4 py-3 font-medium text-foreground">{s.name}</td>
                         <td className="px-4 py-3 text-muted-foreground">{s.email}</td>
-                        <td className="px-4 py-3 text-foreground">{s.products}</td>
+                        <td className="px-4 py-3 text-foreground font-semibold">{s.products}</td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                              s.status === 'Active'
+                                ? 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400'
+                                : s.status === 'Pending'
+                                ? 'bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400'
+                                : 'bg-rose-100 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400'
+                            }`}
+                          >
+                            ● {s.status}
+                          </span>
+                        </td>
                         <td className="px-4 py-3 text-muted-foreground">{s.date}</td>
                         <td className="px-4 py-3">
                           <div className="flex gap-2">
-                            <button
-                              onClick={() => toast.success(`Approved seller "${s.name}"`)}
-                              className="flex items-center gap-1 text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2.5 py-1 rounded font-medium hover:bg-green-200 transition-colors"
-                            >
-                              <CheckCircle size={11} /> Approve
-                            </button>
-                            <button
-                              onClick={() => toast.error(`Rejected seller "${s.name}"`)}
-                              className="flex items-center gap-1 text-xs bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 px-2.5 py-1 rounded font-medium hover:bg-red-200 transition-colors"
-                            >
-                              <XCircle size={11} /> Reject
-                            </button>
+                            {s.status !== 'Active' && (
+                              <button
+                                onClick={() => handleSellerAction(s.id, 'Active')}
+                                className="flex items-center gap-1 text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2.5 py-1 rounded font-medium hover:bg-green-200 transition-colors"
+                              >
+                                <CheckCircle size={11} /> Approve
+                              </button>
+                            )}
+                            {s.status !== 'Blocked' && (
+                              <button
+                                onClick={() => handleSellerAction(s.id, 'Blocked')}
+                                className="flex items-center gap-1 text-xs bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 px-2.5 py-1 rounded font-medium hover:bg-red-200 transition-colors"
+                              >
+                                <XCircle size={11} /> Block
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+
+                {filteredSellers.length === 0 && (
+                  <div className="p-8 text-center text-xs text-muted-foreground">
+                    No sellers found matching the "{sellerStatusFilter}" filter.
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -363,7 +488,7 @@ export default function AdminDashboard() {
                 <table className="w-full text-sm">
                   <thead className="bg-muted">
                     <tr>
-                      {['Product', 'Category', 'Price', 'Stock', 'Seller', 'Action'].map(h => (
+                      {['Product', 'Category', 'Price', 'Seller', 'Action'].map(h => (
                         <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase">{h}</th>
                       ))}
                     </tr>
@@ -374,17 +499,16 @@ export default function AdminDashboard() {
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
                             <img src={p.images[0]} alt="" className="w-10 h-10 rounded object-cover" />
-                            <span className="font-medium text-foreground max-w-[180px] truncate">{p.name}</span>
+                            <span className="font-medium text-foreground max-w-[220px] truncate">{p.name}</span>
                           </div>
                         </td>
                         <td className="px-4 py-3 text-muted-foreground">{p.category}</td>
                         <td className="px-4 py-3 font-semibold text-foreground">{formatPrice(p.price)}</td>
-                        <td className="px-4 py-3"><span className={p.stock > 10 ? 'text-green-600' : 'text-orange-600'}>{p.stock}</span></td>
-                        <td className="px-4 py-3 text-muted-foreground max-w-[120px] truncate">{p.seller}</td>
+                        <td className="px-4 py-3 text-muted-foreground max-w-[140px] truncate">{p.seller}</td>
                         <td className="px-4 py-3">
                           <button
-                            onClick={() => handleRemoveProductFromListing(p.id, p.name)}
-                            className="flex items-center gap-1 text-xs bg-rose-100 dark:bg-rose-950/40 text-rose-600 hover:bg-rose-200 px-2.5 py-1 rounded font-semibold transition-colors"
+                            onClick={() => handleRemoveProductFromListing(p.id, p.name, p.name)}
+                            className="flex items-center gap-1 text-xs bg-rose-100 dark:bg-rose-950/40 text-rose-600 hover:bg-rose-200 px-2.5 py-1 rounded font-semibold transition-colors cursor-pointer"
                           >
                             <Trash2 size={12} /> Remove
                           </button>
@@ -397,7 +521,7 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* User Management Section (NEW) */}
+          {/* User Management Section */}
           {activeSection === 'users' && (
             <div className="space-y-5">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -441,8 +565,8 @@ export default function AdminDashboard() {
                   <thead className="bg-muted text-muted-foreground uppercase font-semibold">
                     <tr>
                       <th className="px-4 py-3">User Profile</th>
-                      <th className="px-4 py-3">Role</th>
-                      <th className="px-4 py-3">Status</th>
+                      <th className="px-4 py-3">User Role</th>
+                      <th className="px-4 py-3">Account Status</th>
                       <th className="px-4 py-3">Joined Date</th>
                       <th className="px-4 py-3 text-right">Actions</th>
                     </tr>
@@ -462,15 +586,9 @@ export default function AdminDashboard() {
                           </div>
                         </td>
                         <td className="px-4 py-3.5">
-                          <select
-                            value={u.role}
-                            onChange={e => handleChangeUserRole(u.id, e.target.value)}
-                            className="bg-background border border-border text-foreground text-[11px] rounded px-2 py-1 font-semibold outline-none focus:ring-1 focus:ring-[#2874F0]"
-                          >
-                            <option value="customer">Customer</option>
-                            <option value="seller">Seller</option>
-                            <option value="admin">Admin</option>
-                          </select>
+                          <span className="capitalize font-bold text-[11px] px-2.5 py-1 rounded bg-[#2874F0]/10 text-[#2874F0] border border-[#2874F0]/20 inline-block">
+                            {u.role}
+                          </span>
                         </td>
                         <td className="px-4 py-3.5">
                           <span
@@ -510,7 +628,7 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* Report Management Section (NEW) */}
+          {/* Customer Reports Section (FULLY FUNCTIONAL BUTTONS: Warn Seller, Unlist Item, Resolve) */}
           {activeSection === 'reports' && (
             <div className="space-y-5">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -520,24 +638,24 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Status Filter */}
+              {/* Priority Filter Tabs (High, Medium, Low) */}
               <div className="flex gap-2 bg-card p-1.5 rounded-xl border border-border">
-                {['All', 'Open', 'In Progress', 'Resolved'].map(st => (
+                {['All', 'High', 'Medium', 'Low'].map(prio => (
                   <button
-                    key={st}
-                    onClick={() => setReportStatusFilter(st)}
+                    key={prio}
+                    onClick={() => setReportPriorityFilter(prio)}
                     className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                      reportStatusFilter === st
+                      reportPriorityFilter === prio
                         ? 'bg-[#2874F0] text-white shadow-sm'
                         : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                     }`}
                   >
-                    {st}
+                    {prio === 'All' ? 'All Priorities' : `${prio} Priority`}
                   </button>
                 ))}
               </div>
 
-              {/* Reports List */}
+              {/* Reports Table */}
               <div className="bg-card rounded-xl shadow-sm border border-border overflow-hidden">
                 <table className="w-full text-xs text-left">
                   <thead className="bg-muted text-muted-foreground uppercase font-semibold">
@@ -547,7 +665,7 @@ export default function AdminDashboard() {
                       <th className="px-4 py-3">Reported Product</th>
                       <th className="px-4 py-3">Seller</th>
                       <th className="px-4 py-3">Complaint Detail</th>
-                      <th className="px-4 py-3">Priority</th>
+                      <th className="px-4 py-3">Priority Level</th>
                       <th className="px-4 py-3 text-right">Admin Enforcement</th>
                     </tr>
                   </thead>
@@ -561,10 +679,10 @@ export default function AdminDashboard() {
                         </td>
                         <td className="px-4 py-3.5 font-semibold text-foreground max-w-[160px] truncate">{rep.product}</td>
                         <td className="px-4 py-3.5 text-muted-foreground">{rep.seller}</td>
-                        <td className="px-4 py-3.5 text-foreground max-w-[200px] truncate">{rep.reason}</td>
+                        <td className="px-4 py-3.5 text-foreground max-w-[180px] truncate">{rep.reason}</td>
                         <td className="px-4 py-3.5">
                           <span
-                            className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            className={`px-2.5 py-1 rounded text-[10px] font-bold ${
                               rep.priority === 'High'
                                 ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-400'
                                 : rep.priority === 'Medium'
@@ -572,166 +690,455 @@ export default function AdminDashboard() {
                                 : 'bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400'
                             }`}
                           >
-                            {rep.priority}
+                            {rep.priority} Priority
                           </span>
                         </td>
                         <td className="px-4 py-3.5 text-right space-x-1.5">
+                          {/* View Details Modal Trigger */}
                           <button
-                            onClick={() => handleSendSellerWarning(rep.seller, rep.id)}
-                            className="px-2.5 py-1 bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 hover:bg-amber-200 rounded text-[11px] font-semibold transition-colors inline-flex items-center gap-1"
-                            title="Send Official Warning to Seller"
+                            onClick={() => setActiveReportModal(rep)}
+                            className="p-1.5 bg-muted hover:bg-muted/80 rounded text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-[11px]"
+                            title="View Full Report Details"
                           >
-                            <Send size={12} /> Warn Seller
+                            <Eye size={13} />
                           </button>
+
+                          {/* 1. Warn Seller Button */}
                           <button
-                            onClick={() => handleRemoveProductFromListing(rep.productId, rep.product)}
-                            className="px-2.5 py-1 bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 hover:bg-rose-200 rounded text-[11px] font-semibold transition-colors inline-flex items-center gap-1"
+                            onClick={() => handleSendSellerWarning(rep.id, rep.seller)}
+                            disabled={rep.warningSent}
+                            className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-all inline-flex items-center gap-1 cursor-pointer ${
+                              rep.warningSent
+                                ? 'bg-amber-100 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 opacity-80'
+                                : 'bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 hover:bg-amber-200'
+                            }`}
+                            title="Send Official Warning Notification to Seller"
+                          >
+                            <Send size={12} /> {rep.warningSent ? 'Warning Sent ✓' : 'Warn Seller'}
+                          </button>
+
+                          {/* 2. Unlist Item Button */}
+                          <button
+                            onClick={() => handleRemoveProductFromListing(rep.id, rep.productId, rep.product)}
+                            disabled={rep.productUnlisted}
+                            className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-all inline-flex items-center gap-1 cursor-pointer ${
+                              rep.productUnlisted
+                                ? 'bg-rose-100 dark:bg-rose-950/40 text-rose-800 dark:text-rose-300 opacity-80'
+                                : 'bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 hover:bg-rose-200'
+                            }`}
                             title="Unlist Product from Store"
                           >
-                            <Trash2 size={12} /> Unlist Item
+                            <Trash2 size={12} /> {rep.productUnlisted ? 'Unlisted ✓' : 'Unlist Item'}
                           </button>
+
+                          {/* 3. Resolve Button */}
                           <button
-                            onClick={() => handleUpdateReportStatus(rep.id, 'Resolved')}
-                            className="px-2.5 py-1 bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 hover:bg-emerald-200 rounded text-[11px] font-semibold transition-colors"
+                            onClick={() => handleUpdateReportStatus(rep.id, rep.status === 'Resolved' ? 'Open' : 'Resolved')}
+                            className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-all inline-flex items-center gap-1 cursor-pointer ${
+                              rep.status === 'Resolved'
+                                ? 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300'
+                                : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                            }`}
                           >
-                            Resolve
+                            <CheckCircle size={12} /> {rep.status === 'Resolved' ? 'Resolved ✓' : 'Resolve'}
                           </button>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+
+                {filteredReports.length === 0 && (
+                  <div className="p-8 text-center text-xs text-muted-foreground">
+                    No customer reports match the "{reportPriorityFilter}" priority filter.
+                  </div>
+                )}
+              </div>
+
+              {/* Full Report Details Modal */}
+              {activeReportModal && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                  <div className="bg-card border border-border rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+                    <div className="flex items-center justify-between border-b border-border pb-3">
+                      <div>
+                        <h3 className="font-bold text-lg text-foreground">Report Ticket ({activeReportModal.id})</h3>
+                        <p className="text-xs text-muted-foreground">Submitted on {activeReportModal.date}</p>
+                      </div>
+                      <button onClick={() => setActiveReportModal(null)} className="text-muted-foreground hover:text-foreground">
+                        <X size={20} />
+                      </button>
+                    </div>
+
+                    <div className="space-y-3 text-xs">
+                      <div className="grid grid-cols-2 gap-3 bg-muted p-3 rounded-lg">
+                        <div>
+                          <span className="text-muted-foreground block">Customer:</span>
+                          <span className="font-semibold text-foreground">{activeReportModal.customer}</span>
+                          <span className="text-muted-foreground block text-[10px]">{activeReportModal.email}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground block">Reported Seller:</span>
+                          <span className="font-semibold text-foreground">{activeReportModal.seller}</span>
+                        </div>
+                      </div>
+
+                      <div>
+                        <span className="text-muted-foreground block mb-0.5">Reported Product Name:</span>
+                        <span className="font-bold text-sm text-[#2874F0]">{activeReportModal.product}</span>
+                      </div>
+
+                      <div className="bg-rose-50 dark:bg-rose-950/30 p-3 rounded-lg border border-rose-200 dark:border-rose-900">
+                        <span className="text-rose-800 dark:text-rose-300 font-bold block mb-1">Customer Complaint Reason:</span>
+                        <p className="text-gray-700 dark:text-gray-300 leading-relaxed">{activeReportModal.reason}</p>
+                      </div>
+
+                      <div className="flex justify-between items-center pt-2">
+                        <div>
+                          <span className="text-muted-foreground block">Priority Level:</span>
+                          <span className="font-bold text-rose-600">{activeReportModal.priority}</span>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-muted-foreground block">Current Status:</span>
+                          <span className="font-bold text-emerald-600">{activeReportModal.status}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2 pt-3 border-t border-border">
+                      <button
+                        onClick={() => handleSendSellerWarning(activeReportModal.id, activeReportModal.seller)}
+                        disabled={activeReportModal.warningSent}
+                        className="bg-amber-500 hover:bg-amber-600 disabled:opacity-60 text-white font-bold py-2 rounded-lg text-xs flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                      >
+                        <Send size={12} /> {activeReportModal.warningSent ? 'Warning Sent' : 'Warn Seller'}
+                      </button>
+                      <button
+                        onClick={() => handleRemoveProductFromListing(activeReportModal.id, activeReportModal.productId, activeReportModal.product)}
+                        disabled={activeReportModal.productUnlisted}
+                        className="bg-rose-600 hover:bg-rose-700 disabled:opacity-60 text-white font-bold py-2 rounded-lg text-xs flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                      >
+                        <Trash2 size={12} /> {activeReportModal.productUnlisted ? 'Unlisted' : 'Unlist Item'}
+                      </button>
+                      <button
+                        onClick={() => handleUpdateReportStatus(activeReportModal.id, activeReportModal.status === 'Resolved' ? 'Open' : 'Resolved')}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-lg text-xs flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                      >
+                        <CheckCircle size={12} /> {activeReportModal.status === 'Resolved' ? 'Resolved ✓' : 'Resolve'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Revenue & Commission Withdrawal Section */}
+          {activeSection === 'revenue' && (
+            <div className="space-y-6">
+              <div>
+                <h1 className="text-xl font-bold text-foreground">Revenue & Commission Payouts</h1>
+                <p className="text-xs text-muted-foreground">Withdraw accumulated platform commission fees to your verified bank account or UPI ID</p>
+              </div>
+
+              {/* Balance Summary Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-gradient-to-br from-[#2874F0] to-blue-700 text-white rounded-2xl p-5 shadow-md">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs text-blue-200 font-semibold uppercase tracking-wider">Available for Withdrawal</span>
+                    <Wallet size={20} className="text-blue-200" />
+                  </div>
+                  <div className="text-3xl font-black">{formatPrice(availableBalance)}</div>
+                  <div className="text-[11px] text-blue-100 mt-2 flex items-center gap-1">
+                    <CheckCircle2 size={13} className="text-emerald-300" /> Ready for immediate payout
+                  </div>
+                </div>
+
+                <div className="bg-card rounded-2xl p-5 border border-border shadow-sm">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Total Commission Earned</span>
+                    <DollarSign size={20} className="text-emerald-600" />
+                  </div>
+                  <div className="text-3xl font-black text-foreground">{formatPrice(totalEarned)}</div>
+                  <div className="text-[11px] text-emerald-600 font-semibold mt-2">+18.5% growth this month</div>
+                </div>
+
+                <div className="bg-card rounded-2xl p-5 border border-border shadow-sm">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Total Revenue Withdrawn</span>
+                    <ArrowDownRight size={20} className="text-purple-600" />
+                  </div>
+                  <div className="text-3xl font-black text-foreground">{formatPrice(totalWithdrawn)}</div>
+                  <div className="text-[11px] text-muted-foreground mt-2">{withdrawals.length} completed transactions</div>
+                </div>
+              </div>
+
+              {/* Withdrawal Request Form & Bank Details */}
+              <div className="grid md:grid-cols-12 gap-6">
+                <div className="md:col-span-6 bg-card rounded-2xl p-6 border border-border shadow-sm space-y-4">
+                  <h2 className="text-base font-bold text-foreground flex items-center gap-2 border-b border-border pb-3">
+                    <Wallet className="text-[#2874F0]" size={20} /> Withdraw Commission Revenue
+                  </h2>
+                  <form onSubmit={handleWithdrawRevenue} className="space-y-4 text-xs">
+                    <div>
+                      <label className="block font-semibold text-foreground mb-1.5">Enter Withdrawal Amount (₹)</label>
+                      <input
+                        type="number"
+                        placeholder="e.g. 50000"
+                        value={withdrawAmount}
+                        onChange={e => setWithdrawAmount(e.target.value)}
+                        className="w-full bg-background border border-border rounded-xl px-4 py-3 text-sm text-foreground outline-none focus:ring-2 focus:ring-[#2874F0]/30 font-bold"
+                      />
+                      <span className="text-[10px] text-muted-foreground mt-1 block">Max available: {formatPrice(availableBalance)}</span>
+                    </div>
+
+                    <div>
+                      <label className="block font-semibold text-foreground mb-1.5">Destination Payout Account</label>
+                      <select
+                        value={payoutMethod}
+                        onChange={e => setPayoutMethod(e.target.value)}
+                        className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-xs text-foreground outline-none focus:ring-2 focus:ring-[#2874F0]/30 font-medium"
+                      >
+                        <option value="HDFC Bank (A/C ...8812)">HDFC Bank (Current A/C ...8812)</option>
+                        <option value="ICICI Bank (A/C ...4019)">ICICI Bank (A/C ...4019)</option>
+                        <option value="UPI (admin@hdfcbank)">Instant UPI (admin@hdfcbank)</option>
+                      </select>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={withdrawing}
+                      className="w-full bg-[#2874F0] hover:bg-blue-600 active:scale-[0.99] disabled:opacity-60 text-white font-bold py-3 rounded-xl shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer text-xs"
+                    >
+                      {withdrawing ? (
+                        <RefreshCw size={16} className="animate-spin" />
+                      ) : (
+                        <>
+                          <Wallet size={16} /> Process Instant Withdrawal
+                        </>
+                      )}
+                    </button>
+                  </form>
+                </div>
+
+                {/* Withdrawal History */}
+                <div className="md:col-span-6 bg-card rounded-2xl p-6 border border-border shadow-sm space-y-4">
+                  <h2 className="text-base font-bold text-foreground border-b border-border pb-3">Recent Payout History</h2>
+                  <div className="space-y-3">
+                    {withdrawals.map(w => (
+                      <div key={w.id} className="flex items-center justify-between p-3 bg-muted rounded-xl text-xs">
+                        <div>
+                          <div className="font-bold text-foreground">{w.id}</div>
+                          <div className="text-[10px] text-muted-foreground">{w.date} · {w.method}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-bold text-emerald-600">{formatPrice(w.amount)}</div>
+                          <span className="text-[9px] bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 font-bold px-1.5 py-0.5 rounded">
+                            {w.status}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           )}
 
-          {/* Settings Section (FULLY FUNCTIONAL) */}
+          {/* Settings Section */}
           {activeSection === 'settings' && (
             <div className="space-y-6">
               <div>
                 <h1 className="text-xl font-bold text-foreground">Admin System Settings</h1>
-                <p className="text-xs text-muted-foreground">Configure store defaults, seller commission fees, tax rates, and security policies</p>
+                <p className="text-xs text-muted-foreground">Manage your admin profile, security credentials, commission rules, and platform policies</p>
               </div>
 
-              <form onSubmit={handleSaveSettings} className="space-y-6">
-                {/* General Settings Card */}
-                <div className="bg-card rounded-xl p-6 border border-border shadow-sm space-y-4">
+              {/* Sub-section Tabs */}
+              <div className="flex gap-2 bg-card p-1.5 rounded-xl border border-border overflow-x-auto">
+                {[
+                  { id: 'profile', label: 'Admin Profile', icon: User },
+                  { id: 'security', label: 'Security & Password', icon: KeyRound },
+                  { id: 'commission', label: 'Commission Rules', icon: DollarSign },
+                  { id: 'policies', label: 'Store Policies', icon: Building },
+                ].map(tab => {
+                  const Icon = tab.icon;
+                  const isActive = activeSettingsTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveSettingsTab(tab.id as any)}
+                      className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${
+                        isActive ? 'bg-[#2874F0] text-white shadow-sm' : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                      }`}
+                    >
+                      <Icon size={15} /> {tab.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Sub-section 1: Admin Profile */}
+              {activeSettingsTab === 'profile' && (
+                <div className="bg-card rounded-2xl p-6 border border-border shadow-sm space-y-4">
                   <h2 className="text-sm font-bold text-foreground flex items-center gap-2 border-b border-border pb-3">
-                    <Sliders className="text-[#2874F0]" size={18} /> General Store Configuration
+                    <User className="text-[#2874F0]" size={18} /> Super Admin Profile Details
                   </h2>
-                  <div className="grid md:grid-cols-3 gap-4 text-xs">
+                  <form onSubmit={handleSaveProfile} className="space-y-4 text-xs max-w-lg">
                     <div>
-                      <label className="block font-semibold text-foreground mb-1">Store Name</label>
+                      <label className="block font-semibold text-foreground mb-1">Admin Full Name</label>
                       <input
                         type="text"
-                        value={settings.storeName}
-                        onChange={e => setSettings({ ...settings, storeName: e.target.value })}
-                        className="w-full bg-background border border-border rounded-lg px-3 py-2 text-foreground outline-none focus:ring-2 focus:ring-[#2874F0]/30"
+                        value={profileForm.name}
+                        onChange={e => setProfileForm({ ...profileForm, name: e.target.value })}
+                        className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-foreground outline-none focus:ring-2 focus:ring-[#2874F0]/30"
                       />
                     </div>
                     <div>
-                      <label className="block font-semibold text-foreground mb-1">Support Email</label>
+                      <label className="block font-semibold text-foreground mb-1">Official Email Address</label>
                       <input
                         type="email"
-                        value={settings.supportEmail}
-                        onChange={e => setSettings({ ...settings, supportEmail: e.target.value })}
-                        className="w-full bg-background border border-border rounded-lg px-3 py-2 text-foreground outline-none focus:ring-2 focus:ring-[#2874F0]/30"
+                        value={profileForm.email}
+                        onChange={e => setProfileForm({ ...profileForm, email: e.target.value })}
+                        className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-foreground outline-none focus:ring-2 focus:ring-[#2874F0]/30"
                       />
                     </div>
                     <div>
-                      <label className="block font-semibold text-foreground mb-1">Toll-Free Support Line</label>
+                      <label className="block font-semibold text-foreground mb-1">Phone Number</label>
                       <input
                         type="text"
-                        value={settings.tollFreePhone}
-                        onChange={e => setSettings({ ...settings, tollFreePhone: e.target.value })}
-                        className="w-full bg-background border border-border rounded-lg px-3 py-2 text-foreground outline-none focus:ring-2 focus:ring-[#2874F0]/30"
+                        value={profileForm.phone}
+                        onChange={e => setProfileForm({ ...profileForm, phone: e.target.value })}
+                        className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-foreground outline-none focus:ring-2 focus:ring-[#2874F0]/30"
                       />
                     </div>
-                  </div>
+                    <button
+                      type="submit"
+                      className="bg-[#2874F0] hover:bg-blue-600 text-white font-bold px-5 py-2.5 rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                    >
+                      <Save size={14} /> Update Profile Info
+                    </button>
+                  </form>
                 </div>
+              )}
 
-                {/* Financial Rules Card */}
-                <div className="bg-card rounded-xl p-6 border border-border shadow-sm space-y-4">
+              {/* Sub-section 2: Security & Password */}
+              {activeSettingsTab === 'security' && (
+                <div className="bg-card rounded-2xl p-6 border border-border shadow-sm space-y-4">
                   <h2 className="text-sm font-bold text-foreground flex items-center gap-2 border-b border-border pb-3">
-                    <DollarSign className="text-[#2874F0]" size={18} /> Commission & Tax Settings
+                    <KeyRound className="text-[#2874F0]" size={18} /> Change Admin Password
                   </h2>
-                  <div className="grid md:grid-cols-3 gap-4 text-xs">
+                  <form onSubmit={handleSavePassword} className="space-y-4 text-xs max-w-lg">
                     <div>
-                      <label className="block font-semibold text-foreground mb-1">Seller Commission Rate (%)</label>
+                      <label className="block font-semibold text-foreground mb-1">Current Password</label>
                       <input
-                        type="number"
-                        value={settings.commissionRate}
-                        onChange={e => setSettings({ ...settings, commissionRate: Number(e.target.value) })}
-                        className="w-full bg-background border border-border rounded-lg px-3 py-2 text-foreground outline-none focus:ring-2 focus:ring-[#2874F0]/30"
+                        type="password"
+                        placeholder="Enter current password"
+                        value={passwordForm.current}
+                        onChange={e => setPasswordForm({ ...passwordForm, current: e.target.value })}
+                        required
+                        className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-foreground outline-none focus:ring-2 focus:ring-[#2874F0]/30"
                       />
                     </div>
                     <div>
-                      <label className="block font-semibold text-foreground mb-1">Free Shipping Min Threshold (₹)</label>
+                      <label className="block font-semibold text-foreground mb-1">New Password</label>
                       <input
-                        type="number"
-                        value={settings.freeShippingThreshold}
-                        onChange={e => setSettings({ ...settings, freeShippingThreshold: Number(e.target.value) })}
-                        className="w-full bg-background border border-border rounded-lg px-3 py-2 text-foreground outline-none focus:ring-2 focus:ring-[#2874F0]/30"
+                        type="password"
+                        placeholder="Min 6 characters"
+                        value={passwordForm.newPw}
+                        onChange={e => setPasswordForm({ ...passwordForm, newPw: e.target.value })}
+                        required
+                        className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-foreground outline-none focus:ring-2 focus:ring-[#2874F0]/30"
                       />
                     </div>
                     <div>
-                      <label className="block font-semibold text-foreground mb-1">Standard GST Tax Rate (%)</label>
+                      <label className="block font-semibold text-foreground mb-1">Confirm New Password</label>
                       <input
-                        type="number"
-                        value={settings.taxRate}
-                        onChange={e => setSettings({ ...settings, taxRate: Number(e.target.value) })}
-                        className="w-full bg-background border border-border rounded-lg px-3 py-2 text-foreground outline-none focus:ring-2 focus:ring-[#2874F0]/30"
+                        type="password"
+                        placeholder="Repeat new password"
+                        value={passwordForm.confirmPw}
+                        onChange={e => setPasswordForm({ ...passwordForm, confirmPw: e.target.value })}
+                        required
+                        className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-foreground outline-none focus:ring-2 focus:ring-[#2874F0]/30"
                       />
                     </div>
-                  </div>
+                    <button
+                      type="submit"
+                      className="bg-[#2874F0] hover:bg-blue-600 text-white font-bold px-5 py-2.5 rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                    >
+                      <ShieldCheck size={14} /> Update Security Password
+                    </button>
+                  </form>
                 </div>
+              )}
 
-                {/* Security & Access Toggles */}
-                <div className="bg-card rounded-xl p-6 border border-border shadow-sm space-y-4">
+              {/* Sub-section 3: Commission Management */}
+              {activeSettingsTab === 'commission' && (
+                <div className="bg-card rounded-2xl p-6 border border-border shadow-sm space-y-4">
                   <h2 className="text-sm font-bold text-foreground flex items-center gap-2 border-b border-border pb-3">
-                    <Lock className="text-[#2874F0]" size={18} /> Security & System Policies
+                    <DollarSign className="text-[#2874F0]" size={18} /> Platform Commission Rules
                   </h2>
-                  <div className="space-y-3 text-xs">
-                    <label className="flex items-center justify-between p-3 bg-muted rounded-lg cursor-pointer">
-                      <div>
-                        <div className="font-semibold text-foreground">Enforce Two-Factor Authentication (2FA) for Admins & Sellers</div>
-                        <div className="text-muted-foreground text-[11px]">Require OTP verification upon portal sign in.</div>
-                      </div>
+                  <div className="grid md:grid-cols-2 gap-4 text-xs max-w-xl">
+                    <div>
+                      <label className="block font-semibold text-foreground mb-1">Seller Commission Fee Rate (%)</label>
                       <input
-                        type="checkbox"
-                        checked={settings.require2FA}
-                        onChange={e => setSettings({ ...settings, require2FA: e.target.checked })}
-                        className="w-4 h-4 text-[#2874F0] rounded border-border"
+                        type="number"
+                        value={commissionForm.rate}
+                        onChange={e => setCommissionForm({ ...commissionForm, rate: Number(e.target.value) })}
+                        className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-foreground outline-none focus:ring-2 focus:ring-[#2874F0]/30"
                       />
-                    </label>
-
-                    <label className="flex items-center justify-between p-3 bg-muted rounded-lg cursor-pointer">
-                      <div>
-                        <div className="font-semibold text-foreground">Auto-Approve Verified Sellers</div>
-                        <div className="text-muted-foreground text-[11px]">Bypass manual review for sellers with verified GSTIN credentials.</div>
-                      </div>
+                    </div>
+                    <div>
+                      <label className="block font-semibold text-foreground mb-1">Minimum Payout Threshold (₹)</label>
                       <input
-                        type="checkbox"
-                        checked={settings.autoApproveSellers}
-                        onChange={e => setSettings({ ...settings, autoApproveSellers: e.target.checked })}
-                        className="w-4 h-4 text-[#2874F0] rounded border-border"
+                        type="number"
+                        value={commissionForm.minPayout}
+                        onChange={e => setCommissionForm({ ...commissionForm, minPayout: Number(e.target.value) })}
+                        className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-foreground outline-none focus:ring-2 focus:ring-[#2874F0]/30"
                       />
-                    </label>
+                    </div>
                   </div>
-                </div>
-
-                {/* Save Button */}
-                <div className="flex justify-end">
                   <button
-                    type="submit"
-                    disabled={savingSettings}
-                    className="bg-[#2874F0] hover:bg-blue-600 text-white font-bold px-6 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-md transition-all cursor-pointer"
+                    onClick={() => toast.success('Commission rules saved!')}
+                    className="bg-[#2874F0] hover:bg-blue-600 text-white font-bold px-5 py-2.5 rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
                   >
-                    {savingSettings ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
-                    {savingSettings ? 'Saving Settings...' : 'Save Settings Changes'}
+                    <Save size={14} /> Save Commission Rules
                   </button>
                 </div>
-              </form>
+              )}
+
+              {/* Sub-section 4: Store & Platform Policies */}
+              {activeSettingsTab === 'policies' && (
+                <div className="bg-card rounded-2xl p-6 border border-border shadow-sm space-y-4">
+                  <h2 className="text-sm font-bold text-foreground flex items-center gap-2 border-b border-border pb-3">
+                    <Building className="text-[#2874F0]" size={18} /> Store & Platform Settings
+                  </h2>
+                  <div className="grid md:grid-cols-2 gap-4 text-xs max-w-xl">
+                    <div>
+                      <label className="block font-semibold text-foreground mb-1">Store Brand Name</label>
+                      <input
+                        type="text"
+                        value={policyForm.storeName}
+                        onChange={e => setPolicyForm({ ...policyForm, storeName: e.target.value })}
+                        className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-foreground outline-none focus:ring-2 focus:ring-[#2874F0]/30"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-semibold text-foreground mb-1">GST Tax Rate (%)</label>
+                      <input
+                        type="number"
+                        value={policyForm.taxRate}
+                        onChange={e => setPolicyForm({ ...policyForm, taxRate: Number(e.target.value) })}
+                        className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-foreground outline-none focus:ring-2 focus:ring-[#2874F0]/30"
+                      />
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => toast.success('Store policies updated!')}
+                    className="bg-[#2874F0] hover:bg-blue-600 text-white font-bold px-5 py-2.5 rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                  >
+                    <Save size={14} /> Save Policy Changes
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
