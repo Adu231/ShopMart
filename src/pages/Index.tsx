@@ -4,7 +4,6 @@ import CategorySection from '@/components/features/CategorySection';
 import FlashSale from '@/components/features/FlashSale';
 import FeaturedProducts from '@/components/features/FeaturedProducts';
 import BrandSection from '@/components/features/BrandSection';
-import ReviewsSection from '@/components/features/ReviewsSection';
 import Newsletter from '@/components/features/Newsletter';
 
 export default function Index() {
@@ -17,7 +16,6 @@ export default function Index() {
         <FlashSale />
         <FeaturedProducts />
         <BrandSection />
-        <ReviewsSection />
         <Newsletter />
       </div>
     </div>

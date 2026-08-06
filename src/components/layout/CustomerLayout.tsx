@@ -1,6 +1,6 @@
 import { ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Package, Heart, MapPin, Bell, Settings, ChevronLeft, LogOut, ArrowLeft } from 'lucide-react';
+import { LayoutDashboard, Package, Heart, MapPin, Bell, Settings, ChevronLeft, LogOut, ArrowLeft, Wallet } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
 import { useWishlist } from '@/context/WishlistContext';
@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 const NAV_ITEMS = [
   { icon: LayoutDashboard, label: 'Overview', to: '/dashboard' },
   { icon: Package, label: 'My Orders', to: '/orders' },
+  { icon: Wallet, label: 'My Wallet', to: '/wallet' },
   { icon: Heart, label: 'Wishlist', to: '/wishlist' },
   { icon: MapPin, label: 'Addresses', to: '/addresses' },
   { icon: Bell, label: 'Notifications', to: '/notifications' },
@@ -99,41 +100,38 @@ export default function CustomerLayout({ children, title, showBackToDashboard = 
                         : 'border-transparent text-foreground hover:bg-muted hover:border-gray-200 dark:hover:border-gray-700'
                     )}
                   >
-                    <Icon size={15} className={isActive ? 'text-[#2874F0]' : 'text-muted-foreground'} />
-                    <span className="flex-1">{label}</span>
-                    {badge != null && (
-                      <span className="bg-[#2874F0] text-white text-[9px] px-1.5 py-0.5 rounded-full font-bold min-w-[18px] text-center">
+                    <Icon size={17} className={isActive ? 'text-[#2874F0]' : 'text-muted-foreground'} />
+                    <span className="flex-1 truncate">{label}</span>
+                    {badge !== undefined && (
+                      <span className="bg-[#2874F0] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
                         {badge}
                       </span>
                     )}
                   </Link>
                 );
               })}
-              <div className="border-t border-border">
-                <button
-                  onClick={handleLogout}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm border-l-[3px] border-transparent text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors"
-                >
-                  <LogOut size={15} />
-                  Logout
-                </button>
-              </div>
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 border-l-[3px] border-transparent transition-all border-t border-border mt-1 font-medium cursor-pointer"
+              >
+                <LogOut size={17} />
+                Logout
+              </button>
             </nav>
           </aside>
 
-          {/* Main Content */}
-          <div className="flex-1 min-w-0">
+          {/* Main Content Area */}
+          <main className="flex-1 min-w-0">
             {showBackToDashboard && (
-              <Link
-                to="/dashboard"
-                className="inline-flex items-center gap-1 text-sm text-[#2874F0] hover:underline mb-3 font-medium transition-colors"
+              <button
+                onClick={() => navigate('/dashboard')}
+                className="inline-flex items-center gap-1.5 text-xs text-[#2874F0] font-semibold hover:underline mb-3"
               >
-                <ArrowLeft size={14} /> Back to Dashboard
-              </Link>
+                <ArrowLeft size={13} /> Back to Dashboard
+              </button>
             )}
-            <h1 className="text-xl font-bold text-foreground mb-4">{title}</h1>
             {children}
-          </div>
+          </main>
         </div>
       </div>
     </div>

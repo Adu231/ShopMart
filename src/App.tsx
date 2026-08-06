@@ -25,6 +25,8 @@ import OrderHistory from "./pages/OrderHistory";
 import Addresses from "./pages/Addresses";
 import Notifications from "./pages/Notifications";
 import AccountSettings from "./pages/AccountSettings";
+import CustomerWallet from "./pages/CustomerWallet";
+import WalletPaymentGateway from "./pages/WalletPaymentGateway";
 import SellerDashboard from "./pages/SellerDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import NotFound from "./pages/NotFound";
@@ -44,7 +46,7 @@ const HIDE_NAV_PATHS = ['/seller', '/admin', '/login', '/signup'];
 const NO_FOOTER_PATHS = ['/seller', '/admin', '/login', '/signup'];
 
 // Customer panel paths — handled by CustomerLayout internally
-const CUSTOMER_PANEL_PATHS = ['/dashboard', '/orders', '/wishlist', '/addresses', '/notifications', '/settings'];
+const CUSTOMER_PANEL_PATHS = ['/dashboard', '/orders', '/wishlist', '/addresses', '/notifications', '/settings', '/wallet'];
 
 function AppLayout() {
   const { pathname } = useLocation();
@@ -63,6 +65,7 @@ function AppLayout() {
           <Route path="/signup" element={<Signup />} />
           <Route path="/products" element={<Products />} />
           <Route path="/products/:id" element={<ProductDetail />} />
+          <Route path="/product/:id" element={<ProductDetail />} />
           <Route path="/cart" element={<Cart />} />
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/order-success/:id" element={<OrderSuccess />} />
@@ -86,6 +89,8 @@ function AppLayout() {
           {/* Customer panel */}
           <Route path="/dashboard" element={<CustomerDashboard />} />
           <Route path="/orders" element={<OrderHistory />} />
+          <Route path="/wallet" element={<CustomerWallet />} />
+          <Route path="/wallet/payment" element={<WalletPaymentGateway />} />
           <Route path="/wishlist" element={<Wishlist />} />
           <Route path="/addresses" element={<Addresses />} />
           <Route path="/notifications" element={<Notifications />} />
