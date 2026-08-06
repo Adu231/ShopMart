@@ -53,10 +53,17 @@ export default function SellerDashboard() {
   return (
     <div className="flex h-screen bg-background overflow-hidden">
       {/* Sidebar */}
-      <aside className="w-56 bg-[#172337] text-white flex flex-col flex-shrink-0">
+      <aside className="w-60 bg-[#172337] text-white flex flex-col flex-shrink-0">
         <div className="p-4 border-b border-white/10">
-          <Link to="/" className="text-lg font-bold italic text-white">ShopMart</Link>
-          <p className="text-xs text-blue-300 mt-0.5">Seller Portal</p>
+          <Link to="/" className="flex items-center gap-2.5 group cursor-pointer" title="Return to WoodNest Home">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#2874F0] to-blue-500 flex items-center justify-center text-white font-black text-xl shadow-md group-hover:scale-105 transition-transform">
+              W
+            </div>
+            <div>
+              <div className="text-white font-extrabold text-lg leading-none tracking-tight">WoodNest</div>
+              <div className="text-[10px] text-blue-300 leading-none mt-1 font-medium">Seller Portal</div>
+            </div>
+          </Link>
         </div>
         <div className="p-4 border-b border-white/10">
           <div className="w-10 h-10 bg-[#2874F0] rounded-full flex items-center justify-center font-bold text-sm mb-1">
