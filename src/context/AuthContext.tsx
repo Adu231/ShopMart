@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, ReactNode } from 'react';
 import type { User, Address } from '@/types';
+import { api } from '@/services/api';
 
 interface AuthContextType {
   user: User | null;
@@ -42,6 +43,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const login = async (email: string, password: string): Promise<boolean> => {
+    // Try backend REST API login first
+    const apiRes = await api.auth.login({ email, password });
+    if (apiRes && apiRes.success && apiRes.user) {
+      setUser(apiRes.user);
+      localStorage.setItem('shopmart_user', JSON.stringify(apiRes.user));
+      return true;
+    }
+
     const demo = DEMO_USERS.find(u => u.email === email && u.password === password);
     if (demo) {
       const { password: _, ...u } = demo;
@@ -70,6 +79,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signup = async (name: string, email: string, password: string, role: 'customer' | 'seller' | 'admin' = 'customer'): Promise<void> => {
     const isSeller = role === 'seller';
+    const businessInfo = isSeller ? JSON.parse(localStorage.getItem('shopmart_seller_business_profile') || '{}') : {};
+
+    // Call REST API backend signup endpoint
+    await api.auth.signup({
+      name,
+      email,
+      password,
+      role,
+      ...businessInfo,
+    });
+
     const newUser: User = {
       id: `u_${Date.now()}`,
       name,

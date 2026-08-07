@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { PRODUCTS } from '@/constants/data';
 import { formatPrice } from '@/lib/utils';
 import { toast } from 'sonner';
+import { api } from '@/services/api';
 
 const SELLER_PRODUCTS_INITIAL = PRODUCTS.filter(p => p.seller.includes('Samsung') || p.id === 'p8' || p.id === 'p10' || p.id === 'p18').slice(0, 6);
 
@@ -372,6 +373,18 @@ export default function SellerDashboard() {
         setRemovedItems([...storedRemoved, ...DEFAULT_REMOVED_PRODUCTS]);
       } catch (e) {}
     };
+
+    api.reports.getSellerWarnings().then(res => {
+      if (res && res.success && Array.isArray(res.warnings) && res.warnings.length > 0) {
+        setAdminWarnings(prev => [...res.warnings, ...prev]);
+      }
+    });
+
+    api.products.getUnlisted().then(res => {
+      if (res && res.success && Array.isArray(res.unlisted) && res.unlisted.length > 0) {
+        setRemovedItems(prev => [...res.unlisted, ...prev]);
+      }
+    });
 
     window.addEventListener('storage', handleStorage);
     return () => window.removeEventListener('storage', handleStorage);

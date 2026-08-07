@@ -3,6 +3,7 @@ import { useSearchParams, Link } from 'react-router-dom';
 import { SlidersHorizontal, X, ChevronDown, ChevronUp, Grid } from 'lucide-react';
 import { PRODUCTS, CATEGORIES, BRAND_NAMES } from '@/constants/data';
 import ProductCard from '@/components/features/ProductCard';
+import { api } from '@/services/api';
 
 const SORT_OPTIONS = [
   { value: 'relevance', label: 'Relevance' },
@@ -46,8 +47,18 @@ export default function Products() {
     }
   }, [selectedBrand]);
 
+  const [productList, setProductList] = useState<any[]>(PRODUCTS);
+
+  useEffect(() => {
+    api.products.getAll().then(res => {
+      if (res && res.success && Array.isArray(res.products) && res.products.length > 0) {
+        setProductList(res.products);
+      }
+    });
+  }, []);
+
   const filtered = useMemo(() => {
-    let list = [...PRODUCTS];
+    let list = [...productList];
     if (q) list = list.filter(p => p.name.toLowerCase().includes(q.toLowerCase()) || p.brand.toLowerCase().includes(q.toLowerCase()) || p.tags.some(t => t.includes(q.toLowerCase())));
     if (selectedCategories.length) list = list.filter(p => selectedCategories.includes(p.category));
     if (selectedBrands.length) list = list.filter(p => selectedBrands.includes(p.brand));

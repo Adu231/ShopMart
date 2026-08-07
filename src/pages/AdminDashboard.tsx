@@ -5,6 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { PRODUCTS } from '@/constants/data';
 import { formatPrice } from '@/lib/utils';
 import { toast } from 'sonner';
+import { api } from '@/services/api';
 
 // Comprehensive Sellers Data
 const INITIAL_SELLERS = [
@@ -726,6 +727,7 @@ export default function AdminDashboard() {
     e.preventDefault();
     try {
       localStorage.setItem('shopmart_commission_rules', JSON.stringify(commissionRules));
+      api.admin.updateCommissionRules(commissionRules);
       toast.success('Platform commission rules updated and saved successfully!');
     } catch (err) {
       toast.error('Failed to update commission rules.');
@@ -750,6 +752,7 @@ export default function AdminDashboard() {
       ...r,
       status: 'Resolved',
     } : r));
+    api.reports.solve(reportId);
     toast.success(`Ticket #${reportId} marked as solved & moved to Solved Reports Archive!`);
     setActiveReportModal(null);
   };
