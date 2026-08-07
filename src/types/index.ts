@@ -39,6 +39,8 @@ export interface User {
   role: 'customer' | 'seller' | 'admin';
   avatar?: string;
   phone?: string;
+  status?: 'Pending' | 'Active' | 'Blocked';
+  isApproved?: boolean;
 }
 
 export interface Address {

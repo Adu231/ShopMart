@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { BarChart2, Package, ShoppingBag, TrendingUp, DollarSign, Star, Plus, LogOut, Home, AlertCircle, Settings, Wallet, CheckCircle2, ArrowDownRight, Layers, Boxes, Trash2, Edit, Save, RefreshCw, User, KeyRound, Building, ShieldCheck, AlertTriangle, ChevronRight, Download, FileSpreadsheet, Calendar, X, FileText, Upload, Image as ImageIcon, MessageSquare, ThumbsUp, RotateCcw, Check, Eye, Lock, ExternalLink, ArrowRight } from 'lucide-react';
+import { BarChart2, Package, ShoppingBag, TrendingUp, DollarSign, Star, Plus, LogOut, Home, AlertCircle, Settings, Wallet, CheckCircle2, ArrowDownRight, Layers, Boxes, Trash2, Edit, Save, RefreshCw, User, KeyRound, Building, Building2, ShieldCheck, ShieldAlert, AlertTriangle, ChevronRight, Download, FileSpreadsheet, Calendar, X, FileText, Upload, Image as ImageIcon, MessageSquare, ThumbsUp, RotateCcw, Check, Eye, Lock, ExternalLink, ArrowRight } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { PRODUCTS } from '@/constants/data';
 import { formatPrice } from '@/lib/utils';
@@ -17,6 +17,42 @@ const INITIAL_SELLER_ORDERS = [
 
 const DEFAULT_REMOVED_PRODUCTS = [
   { id: 'p99', name: 'Vintage Sheesham Armchair', category: 'Chairs', price: 14999, seller: 'Samsung Electronics / WoodNest Seller', removedDate: '2026-08-02', reason: 'Failed quality assurance inspection - polish defect reported by multiple customers.' },
+];
+
+const INITIAL_ADMIN_WARNINGS = [
+  {
+    id: 'WRN-801',
+    reportId: 'REP-102',
+    productName: 'Modern Velvet 3-Seater Sofa',
+    customerName: 'Kavita Singh',
+    reason: 'Upholstery color mismatch & velvet fabric stain reported',
+    priority: 'High',
+    date: '2026-08-04',
+    message: 'OFFICIAL ADMIN AUDIT WARNING: Customer reported severe fabric color mismatch and velvet upholstery stains on delivery. Please inspect your quality control process and update batch photos within 48 hours.',
+    status: 'Unread',
+  },
+  {
+    id: 'WRN-800',
+    reportId: 'REP-104',
+    productName: 'King Size Storage Teak Bed',
+    customerName: 'Rohan Sharma',
+    reason: 'Suspected fake wood veneer coating on side headboard',
+    priority: 'High',
+    date: '2026-08-02',
+    message: 'CRITICAL AUDIT NOTICE: Customer raised complaint regarding veneer coating authenticity. Provide timber grade certification to Super Admin compliance desk.',
+    status: 'Acknowledged',
+  },
+  {
+    id: 'WRN-799',
+    reportId: 'REP-103',
+    productName: 'Ergonomic Sheesham Study Table',
+    customerName: 'Amit Patel',
+    reason: 'Delayed assembly service (>5 days)',
+    priority: 'Low',
+    date: '2026-07-30',
+    message: 'SERVICE SLA NOTICE: Assembly service was delayed past guaranteed 48-hour window. Expedite technician scheduling for regional orders.',
+    status: 'Acknowledged',
+  },
 ];
 
 const INITIAL_SELLER_WITHDRAWALS = [
@@ -199,23 +235,100 @@ export default function SellerDashboard() {
 
   // Settings Sub-Sections Tabs
   const [activeSettingsTab, setActiveSettingsTab] = useState<'account' | 'profile' | 'security'>('account');
-  const [accountDetails, setAccountDetails] = useState({
-    accountHolder: 'Samsung Electronics India',
-    bankName: 'HDFC Bank Ltd.',
-    accountNumber: '50100234819201',
-    ifscCode: 'HDFC0000240',
-    upiId: 'samsung@hdfcbank',
-    gstin: '29AAACS1234F1Z5',
+  const [accountDetails, setAccountDetails] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('shopmart_seller_business_profile') || '{}');
+      return {
+        accountHolder: saved.storeName || 'Samsung Electronics India',
+        bankName: 'HDFC Bank Ltd.',
+        accountNumber: saved.accountNumber || '50100234819201',
+        ifscCode: saved.ifscCode || 'HDFC0000240',
+        upiId: 'seller@hdfcbank',
+        gstin: saved.gstin || '29AAACS1234F1Z5',
+      };
+    } catch {
+      return {
+        accountHolder: 'Samsung Electronics India',
+        bankName: 'HDFC Bank Ltd.',
+        accountNumber: '50100234819201',
+        ifscCode: 'HDFC0000240',
+        upiId: 'seller@hdfcbank',
+        gstin: '29AAACS1234F1Z5',
+      };
+    }
   });
 
-  const [profileForm, setProfileForm] = useState({
-    storeName: 'Samsung Official Store / WoodNest Hub',
-    ownerName: user?.name || 'Rahul Seller',
-    email: user?.email || 'seller@demo.com',
-    phone: '9876543211',
+  const [profileForm, setProfileForm] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('shopmart_seller_business_profile') || '{}');
+      return {
+        storeName: saved.storeName || 'Samsung Official Store / WoodNest Hub',
+        ownerName: user?.name || 'Rahul Seller',
+        email: user?.email || 'seller@demo.com',
+        phone: '9876543211',
+      };
+    } catch {
+      return {
+        storeName: 'Samsung Official Store / WoodNest Hub',
+        ownerName: user?.name || 'Rahul Seller',
+        email: user?.email || 'seller@demo.com',
+        phone: '9876543211',
+      };
+    }
   });
 
   const [passwordForm, setPasswordForm] = useState({ current: '', newPw: '', confirmPw: '' });
+
+  // Seller Verification Approval State
+  const [isPendingApproval, setIsPendingApproval] = useState(() => {
+    if (user?.status === 'Pending' || user?.isApproved === false) return true;
+    try {
+      const approvals = JSON.parse(localStorage.getItem('shopmart_seller_approvals') || '[]');
+      const match = approvals.find((s: any) => s.email === user?.email || s.userAccountId === user?.id);
+      return match ? match.status === 'Pending' : false;
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    const handleStorageApproval = () => {
+      try {
+        const currentUser = JSON.parse(localStorage.getItem('shopmart_user') || 'null');
+        if (currentUser && (currentUser.status === 'Active' || currentUser.isApproved)) {
+          setIsPendingApproval(false);
+          return;
+        }
+        const approvals = JSON.parse(localStorage.getItem('shopmart_seller_approvals') || '[]');
+        const match = approvals.find((s: any) => s.email === user?.email || s.userAccountId === user?.id);
+        if (match && match.status === 'Active') {
+          setIsPendingApproval(false);
+          updateUser({ status: 'Active', isApproved: true });
+        }
+      } catch (e) {}
+    };
+
+    window.addEventListener('storage', handleStorageApproval);
+    return () => window.removeEventListener('storage', handleStorageApproval);
+  }, [user]);
+
+  const checkApprovalStatus = () => {
+    try {
+      const currentUser = JSON.parse(localStorage.getItem('shopmart_user') || 'null');
+      const approvals = JSON.parse(localStorage.getItem('shopmart_seller_approvals') || '[]');
+      const match = approvals.find((s: any) => s.email === user?.email || s.userAccountId === user?.id);
+
+      if ((currentUser && currentUser.status === 'Active') || (match && match.status === 'Active')) {
+        setIsPendingApproval(false);
+        updateUser({ status: 'Active', isApproved: true });
+        toast.success('Your seller account has been approved by Super Admin!');
+      } else {
+        toast.info('Your registration & business profile are still under review by Super Admin.');
+      }
+    } catch (e) {
+      toast.info('Verification check in progress.');
+    }
+  };
 
   const barData = [
     { month: 'Mar', value: 65000 },
@@ -232,6 +345,15 @@ export default function SellerDashboard() {
     if (user && user.role !== 'seller' && user.role !== 'admin') navigate('/');
   }, [isAuthenticated, user]);
 
+  const [adminWarnings, setAdminWarnings] = useState<any[]>(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('shopmart_admin_warnings') || '[]');
+      return stored.length ? stored : INITIAL_ADMIN_WARNINGS;
+    } catch {
+      return INITIAL_ADMIN_WARNINGS;
+    }
+  });
+
   useEffect(() => {
     try {
       const stored = JSON.parse(localStorage.getItem('shopmart_removed_products') || '[]');
@@ -240,6 +362,31 @@ export default function SellerDashboard() {
       setRemovedItems(DEFAULT_REMOVED_PRODUCTS);
     }
   }, []);
+
+  useEffect(() => {
+    const handleStorage = () => {
+      try {
+        const storedWarnings = JSON.parse(localStorage.getItem('shopmart_admin_warnings') || '[]');
+        if (storedWarnings.length) setAdminWarnings(storedWarnings);
+        const storedRemoved = JSON.parse(localStorage.getItem('shopmart_removed_products') || '[]');
+        setRemovedItems([...storedRemoved, ...DEFAULT_REMOVED_PRODUCTS]);
+      } catch (e) {}
+    };
+
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
+
+  const handleAcknowledgeWarning = (warningId: string) => {
+    setAdminWarnings(prev => {
+      const updated = prev.map(w => w.id === warningId ? { ...w, status: 'Acknowledged' } : w);
+      try {
+        localStorage.setItem('shopmart_admin_warnings', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+    toast.success('Admin warning notice acknowledged.');
+  };
 
   const stats = [
     { icon: DollarSign, label: 'Total Revenue', value: formatPrice(totalRevenue), change: '+12.5%', bg: 'bg-green-50 dark:bg-green-950/30', color: 'text-green-600' },
@@ -253,6 +400,7 @@ export default function SellerDashboard() {
     { id: 'products', icon: Package, label: 'Product Management' },
     { id: 'orders', icon: ShoppingBag, label: 'Orders' },
     { id: 'returns', icon: RotateCcw, label: 'Returns & Replacements' },
+    { id: 'admin_notices', icon: ShieldAlert, label: 'Admin Messages & Reports' },
     { id: 'revenue', icon: TrendingUp, label: 'Revenue Analytics' },
     { id: 'analytics', icon: FileSpreadsheet, label: 'Sales Reports & Analytics' },
     { id: 'reviews', icon: Star, label: 'Customer Reviews' },
@@ -531,6 +679,52 @@ export default function SellerDashboard() {
 
   const currentSalesData = SALES_PERIOD_DATA[reportPeriod];
 
+  if (isPendingApproval) {
+    return (
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center p-4">
+        <div className="bg-card border border-border rounded-2xl max-w-lg w-full p-8 shadow-2xl space-y-6 text-center">
+          <div className="w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 mx-auto flex items-center justify-center border border-amber-200 dark:border-amber-900 shadow-sm">
+            <Building2 size={32} />
+          </div>
+
+          <div className="space-y-2">
+            <span className="bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 font-bold px-3.5 py-1 rounded-full text-xs border border-amber-200 dark:border-amber-900 inline-block">
+              ⏳ Seller Account Verification Pending
+            </span>
+            <h1 className="text-2xl font-black text-foreground">Super Admin Approval Required</h1>
+            <p className="text-xs text-muted-foreground leading-relaxed max-w-md mx-auto">
+              Welcome to WoodNest Seller Portal! Your seller registration & business profile are currently under review by Super Admin.
+            </p>
+          </div>
+
+          <div className="bg-muted/40 p-4 rounded-xl border border-border text-left text-xs space-y-2">
+            <p className="font-bold text-foreground border-b border-border pb-2">Submitted Business Registration Details:</p>
+            <p className="text-muted-foreground">Store Name: <strong className="text-foreground">{accountDetails.accountHolder}</strong></p>
+            <p className="text-muted-foreground">GSTIN: <strong className="font-mono text-foreground">{accountDetails.gstin}</strong></p>
+            <p className="text-muted-foreground">Bank Account: <strong className="font-mono text-foreground">{accountDetails.accountNumber}</strong></p>
+            <p className="text-muted-foreground">Registered Email: <strong className="text-foreground">{user?.email}</strong></p>
+            <p className="text-muted-foreground">Status: <strong className="text-amber-600 font-bold">Pending Super Admin Verification</strong></p>
+          </div>
+
+          <div className="space-y-3 pt-2">
+            <button
+              onClick={checkApprovalStatus}
+              className="w-full bg-[#2874F0] hover:bg-blue-600 text-white font-bold py-3 rounded-xl text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md"
+            >
+              <RefreshCw size={15} /> Check Admin Approval Status
+            </button>
+            <button
+              onClick={() => { logout(); navigate('/login'); }}
+              className="w-full text-xs font-semibold text-muted-foreground hover:text-rose-500 py-1 transition-colors cursor-pointer"
+            >
+              Sign Out / Return to Storefront
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-screen bg-background overflow-hidden">
       {/* Sidebar with Official WoodNest Emblem Logo Header */}
@@ -571,6 +765,11 @@ export default function SellerDashboard() {
               {id === 'returns' && returnRequests.filter(r => r.status === 'pending').length > 0 && (
                 <span className="ml-auto bg-purple-500 text-white text-[10px] rounded-full px-1.5 py-0.2 font-bold">
                   {returnRequests.filter(r => r.status === 'pending').length}
+                </span>
+              )}
+              {id === 'admin_notices' && (adminWarnings.filter(w => w.status === 'Unread').length > 0 || removedItems.length > 0) && (
+                <span className="ml-auto bg-rose-500 text-white text-[10px] rounded-full px-1.5 py-0.2 font-bold">
+                  {adminWarnings.filter(w => w.status === 'Unread').length + removedItems.length}
                 </span>
               )}
             </button>
@@ -1099,7 +1298,15 @@ export default function SellerDashboard() {
                                   <span className="font-extrabold text-purple-900 dark:text-purple-200">{formatPrice(req.amount)}</span>
                                 </div>
                                 <div className="flex justify-between">
-                                  <span className="text-muted-foreground">Admin Commission Reversal (-10%):</span>
+                                  <span className="text-muted-foreground">
+                                    Admin Commission Reversal (-{(() => {
+                                      try {
+                                        const rules = JSON.parse(localStorage.getItem('shopmart_commission_rules') || '{}');
+                                        if (rules.standardRate !== undefined) return rules.standardRate;
+                                      } catch (e) {}
+                                      return 10;
+                                    })()}%):
+                                  </span>
                                   <span className="font-bold text-rose-600">-{formatPrice(req.commissionAmount)}</span>
                                 </div>
                                 <div className="flex justify-between pt-1 border-t border-purple-200 dark:border-purple-900 font-extrabold">
@@ -1485,6 +1692,162 @@ export default function SellerDashboard() {
                       )}
                     </div>
                   ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ADMIN MESSAGES & REPORTS SECTION */}
+          {activeSection === 'admin_notices' && (
+            <div className="space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
+                    <ShieldAlert className="text-rose-600" size={22} /> Admin Messages & Audit Reports
+                  </h1>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    View official warning messages sent by Super Admin regarding customer reports & unlisted products.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 font-bold px-3 py-1.5 rounded-xl border border-rose-200 dark:border-rose-900 flex items-center gap-1">
+                    <AlertTriangle size={14} /> {adminWarnings.filter(w => w.status === 'Unread').length} New Warnings
+                  </span>
+                  <span className="bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 font-bold px-3 py-1.5 rounded-xl border border-amber-200 dark:border-amber-900 flex items-center gap-1">
+                    <Trash2 size={14} /> {removedItems.length} Unlisted Products
+                  </span>
+                </div>
+              </div>
+
+              {/* Sub-tabs for Warnings vs Removed Products */}
+              <div className="grid md:grid-cols-2 gap-6">
+                {/* Left Card Column: Official Admin Warning Messages */}
+                <div className="bg-card rounded-2xl border border-border shadow-sm p-5 space-y-4">
+                  <div className="flex items-center justify-between border-b border-border pb-3">
+                    <h2 className="font-bold text-sm text-foreground flex items-center gap-2">
+                      <MessageSquare className="text-[#2874F0]" size={18} /> Admin Report Warnings ({adminWarnings.length})
+                    </h2>
+                    <span className="text-[10px] text-muted-foreground font-medium">Customer Quality Audits</span>
+                  </div>
+
+                  {adminWarnings.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground space-y-2">
+                      <CheckCircle2 size={36} className="mx-auto text-emerald-500 opacity-60" />
+                      <p className="font-bold text-xs">No Warnings Received</p>
+                      <p className="text-[11px]">Your seller store has clean audit records!</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
+                      {adminWarnings.map((w: any) => (
+                        <div
+                          key={w.id}
+                          className={`p-4 rounded-xl border transition-all ${
+                            w.status === 'Unread'
+                              ? 'bg-rose-50/50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900/50 shadow-xs'
+                              : 'bg-muted/30 border-border'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2 mb-2">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono font-bold text-xs text-[#2874F0] bg-blue-100 dark:bg-blue-950/50 px-2 py-0.5 rounded">
+                                {w.reportId || w.id}
+                              </span>
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                                w.priority === 'High' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-800'
+                              }`}>
+                                {w.priority} Priority
+                              </span>
+                            </div>
+                            <span className="text-[10px] text-muted-foreground font-mono">{w.date}</span>
+                          </div>
+
+                          <p className="font-bold text-foreground text-xs mb-1">{w.productName}</p>
+                          <p className="text-[11px] text-rose-600 font-semibold mb-2">
+                            Customer Issue: "{w.reason}"
+                          </p>
+
+                          <div className="bg-background/80 p-3 rounded-lg border border-border text-xs text-foreground space-y-1 mb-3">
+                            <p className="font-semibold text-muted-foreground text-[10px] uppercase tracking-wider">Super Admin Directive:</p>
+                            <p className="leading-relaxed">{w.message}</p>
+                          </div>
+
+                          <div className="flex items-center justify-between pt-1">
+                            <span className={`text-[10px] font-bold flex items-center gap-1 ${
+                              w.status === 'Acknowledged' ? 'text-emerald-600' : 'text-amber-600'
+                            }`}>
+                              {w.status === 'Acknowledged' ? <CheckCircle2 size={12} /> : <AlertCircle size={12} />}
+                              Status: {w.status}
+                            </span>
+                            {w.status !== 'Acknowledged' && (
+                              <button
+                                onClick={() => handleAcknowledgeWarning(w.id)}
+                                className="bg-[#2874F0] hover:bg-blue-600 text-white font-bold px-3 py-1.5 rounded-lg text-[11px] flex items-center gap-1 cursor-pointer transition-colors shadow-xs"
+                              >
+                                <Check size={12} /> Acknowledge Notice
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Right Card Column: Unlisted & Removed Products by Admin */}
+                <div className="bg-card rounded-2xl border border-border shadow-sm p-5 space-y-4">
+                  <div className="flex items-center justify-between border-b border-border pb-3">
+                    <h2 className="font-bold text-sm text-foreground flex items-center gap-2">
+                      <Trash2 className="text-rose-600" size={18} /> Admin Unlisted Products ({removedItems.length})
+                    </h2>
+                    <span className="text-[10px] text-muted-foreground font-medium">Catalog Enforcement</span>
+                  </div>
+
+                  {removedItems.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground space-y-2">
+                      <Package size={36} className="mx-auto opacity-40" />
+                      <p className="font-bold text-xs">No Unlisted Products</p>
+                      <p className="text-[11px]">All your active store product listings are compliant.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
+                      {removedItems.map((item: any) => (
+                        <div key={item.id} className="p-4 rounded-xl border border-rose-200 dark:border-rose-900/40 bg-rose-50/30 dark:bg-rose-950/10 space-y-3">
+                          <div className="flex items-center gap-3">
+                            {item.images && item.images[0] ? (
+                              <img src={item.images[0]} alt="" className="w-12 h-12 rounded-lg object-cover border border-border shrink-0" />
+                            ) : (
+                              <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center text-muted-foreground shrink-0 font-bold text-xs">
+                                IMG
+                              </div>
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <p className="font-bold text-foreground text-xs truncate">{item.name}</p>
+                              <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                                <span>Category: {item.category}</span>
+                                <span>•</span>
+                                <span className="font-bold text-foreground">{formatPrice(item.price)}</span>
+                              </div>
+                            </div>
+                            <span className="bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300 font-bold px-2 py-0.5 rounded text-[10px] shrink-0 border border-rose-200 dark:border-rose-900">
+                              Unlisted
+                            </span>
+                          </div>
+
+                          <div className="bg-background p-3 rounded-lg border border-border text-xs space-y-1">
+                            <p className="font-bold text-rose-600 text-[11px] flex items-center gap-1">
+                              <AlertTriangle size={12} /> Official Removal Reason:
+                            </p>
+                            <p className="text-foreground leading-relaxed text-[11px]">
+                              {item.reason || 'Unlisted by Super Admin due to customer quality report.'}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground pt-1 border-t border-border mt-1">
+                              Unlisted Date: <span className="font-mono font-semibold">{item.removedDate || '2026-08-05'}</span>
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

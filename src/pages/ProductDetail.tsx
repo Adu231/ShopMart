@@ -5,8 +5,10 @@ import { PRODUCTS } from '@/constants/data';
 import { formatPrice } from '@/lib/utils';
 import { useCart } from '@/context/CartContext';
 import { useWishlist } from '@/context/WishlistContext';
+import { useAuth } from '@/context/AuthContext';
 import ProductCard from '@/components/features/ProductCard';
 import { toast } from 'sonner';
+import LoginRequiredModal from '@/components/modals/LoginRequiredModal';
 
 const INITIAL_PRODUCT_REVIEWS = [
   {
@@ -28,7 +30,7 @@ const INITIAL_PRODUCT_REVIEWS = [
     verified: true,
     title: 'Sturdy Build Quality & Smooth Polish',
     comment: 'Bought this handcrafted teak wood piece for our living room. Build quality is top-notch, sturdy, and heavy-duty timber. Provides great aesthetic value. Highly recommend WoodNest!',
-    helpfulCount: 12,
+    helpfulCount: 9,
     voted: false,
   },
   {
@@ -60,8 +62,10 @@ export default function ProductDetail() {
   const navigate = useNavigate();
   const { addToCart } = useCart();
   const { isInWishlist, toggleWishlist } = useWishlist();
+  const { user, isAuthenticated } = useAuth();
   const [selectedImg, setSelectedImg] = useState(0);
   const [qty, setQty] = useState(1);
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   // Amazon-Style Customer Reviews State
   const [reviews, setReviews] = useState(INITIAL_PRODUCT_REVIEWS);
@@ -75,7 +79,7 @@ export default function ProductDetail() {
 
   // Dynamic Product Resolution (Searches static PRODUCTS, localStorage, or constructs dynamic fallback)
   const getProduct = () => {
-    if (!id) return null;
+    if (!id) return PRODUCTS[0];
     const staticFound = PRODUCTS.find(p => p.id === id);
     if (staticFound) return staticFound;
 
@@ -128,11 +132,27 @@ export default function ProductDetail() {
   const related = PRODUCTS.filter(p => p.category === product.category && p.id !== product.id).slice(0, 4);
 
   const handleAddToCart = () => {
+    if (user?.role === 'admin' || user?.role === 'seller') {
+      toast.info(`Purchasing is disabled for ${user.role} accounts. Ordering is only available for Customer accounts.`);
+      return;
+    }
+    if (!isAuthenticated) {
+      setShowLoginModal(true);
+      return;
+    }
     addToCart(product as any, qty);
     toast.success(`Added ${qty} item(s) to cart!`);
   };
 
   const handleBuyNow = () => {
+    if (user?.role === 'admin' || user?.role === 'seller') {
+      toast.info(`Purchasing is disabled for ${user.role} accounts. Ordering is only available for Customer accounts.`);
+      return;
+    }
+    if (!isAuthenticated) {
+      setShowLoginModal(true);
+      return;
+    }
     addToCart(product as any, qty);
     navigate('/cart');
   };
@@ -265,27 +285,38 @@ export default function ProductDetail() {
                   </div>
                 </div>
 
-                <div className="flex flex-wrap gap-3 pt-1">
-                  <button
-                    onClick={handleAddToCart}
-                    className="flex-1 bg-[#2874F0] hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md text-sm"
-                  >
-                    <ShoppingCart size={16} /> Add to Cart
-                  </button>
-                  <button
-                    onClick={handleBuyNow}
-                    className="flex-1 bg-[#FB641B] hover:bg-[#e55a18] text-white font-extrabold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md text-sm"
-                  >
-                    <Zap size={16} /> Buy Now
-                  </button>
-                  <button
-                    onClick={() => { toggleWishlist(product as any); toast.success(inWishlist ? 'Removed from Wishlist' : 'Saved to Wishlist!'); }}
-                    className={`p-3 border border-border rounded-xl transition-colors cursor-pointer ${inWishlist ? 'bg-rose-50 text-rose-600 border-rose-200' : 'bg-background hover:bg-muted text-muted-foreground'}`}
-                    title="Toggle Wishlist"
-                  >
-                    <Heart size={20} className={inWishlist ? 'fill-rose-600 text-rose-600' : ''} />
-                  </button>
-                </div>
+                {user?.role === 'admin' || user?.role === 'seller' ? (
+                  <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-4 rounded-xl space-y-1">
+                    <p className="font-bold text-blue-900 dark:text-blue-200 text-xs flex items-center gap-1.5">
+                      <Shield size={16} className="text-[#2874F0]" /> Storefront View Mode ({user.role === 'admin' ? 'Super Admin' : 'Seller'})
+                    </p>
+                    <p className="text-[11px] text-blue-700 dark:text-blue-300">
+                      Product ordering features (Add to Cart & Buy Now) and Customer Order History are restricted to Customer accounts only.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-3 pt-1">
+                    <button
+                      onClick={handleAddToCart}
+                      className="flex-1 bg-[#2874F0] hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md text-sm"
+                    >
+                      <ShoppingCart size={16} /> Add to Cart
+                    </button>
+                    <button
+                      onClick={handleBuyNow}
+                      className="flex-1 bg-[#FB641B] hover:bg-[#e55a18] text-white font-extrabold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md text-sm"
+                    >
+                      <Zap size={16} /> Buy Now
+                    </button>
+                    <button
+                      onClick={() => { toggleWishlist(product as any); toast.success(inWishlist ? 'Removed from Wishlist' : 'Saved to Wishlist!'); }}
+                      className={`p-3 border border-border rounded-xl transition-colors cursor-pointer ${inWishlist ? 'bg-rose-50 text-rose-600 border-rose-200' : 'bg-background hover:bg-muted text-muted-foreground'}`}
+                      title="Toggle Wishlist"
+                    >
+                      <Heart size={20} className={inWishlist ? 'fill-rose-600 text-rose-600' : ''} />
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Guarantees */}
@@ -537,6 +568,13 @@ export default function ProductDetail() {
           </div>
         </div>
       )}
+
+      <LoginRequiredModal
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        actionText="buy products"
+        redirectUrl={`/products/${product.id}`}
+      />
     </div>
   );
 }

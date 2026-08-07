@@ -5,7 +5,7 @@ interface AuthContextType {
   user: User | null;
   addresses: Address[];
   login: (email: string, password: string) => Promise<boolean>;
-  signup: (name: string, email: string, password: string) => Promise<void>;
+  signup: (name: string, email: string, password: string, role?: 'customer' | 'seller' | 'admin') => Promise<void>;
   logout: () => void;
   addAddress: (address: Omit<Address, 'id'>) => void;
   removeAddress: (id: string) => void;
@@ -17,9 +17,9 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const DEMO_USERS: (User & { password: string })[] = [
-  { id: 'u1', name: 'Priya Customer', email: 'customer@demo.com', role: 'customer', phone: '9876543210', password: 'password123' },
-  { id: 'u2', name: 'Rahul Seller', email: 'seller@demo.com', role: 'seller', phone: '9876543211', password: 'password123' },
-  { id: 'u3', name: 'Admin User', email: 'admin@demo.com', role: 'admin', phone: '9876543212', password: 'password123' },
+  { id: 'u1', name: 'Priya Customer', email: 'customer@demo.com', role: 'customer', phone: '9876543210', password: 'password123', status: 'Active', isApproved: true },
+  { id: 'u2', name: 'Rahul Seller', email: 'seller@demo.com', role: 'seller', phone: '9876543211', password: 'password123', status: 'Active', isApproved: true },
+  { id: 'u3', name: 'Admin User', email: 'admin@demo.com', role: 'admin', phone: '9876543212', password: 'password123', status: 'Active', isApproved: true },
 ];
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
@@ -53,6 +53,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const found = registered.find(u => u.email === email && u.password === password);
     if (found) {
       const { password: _, ...u } = found;
+      try {
+        const sellerApprovals = JSON.parse(localStorage.getItem('shopmart_seller_approvals') || '[]');
+        const approval = sellerApprovals.find((s: any) => s.email === email || s.userAccountId === u.id);
+        if (approval && approval.status === 'Active') {
+          u.status = 'Active';
+          u.isApproved = true;
+        }
+      } catch (e) {}
       setUser(u);
       localStorage.setItem('shopmart_user', JSON.stringify(u));
       return true;
@@ -60,10 +68,44 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return false;
   };
 
-  const signup = async (name: string, email: string, password: string): Promise<void> => {
-    const newUser: User = { id: `u_${Date.now()}`, name, email, role: 'customer' };
+  const signup = async (name: string, email: string, password: string, role: 'customer' | 'seller' | 'admin' = 'customer'): Promise<void> => {
+    const isSeller = role === 'seller';
+    const newUser: User = {
+      id: `u_${Date.now()}`,
+      name,
+      email,
+      role,
+      status: isSeller ? 'Pending' : 'Active',
+      isApproved: !isSeller,
+    };
     const existing: (User & { password: string })[] = JSON.parse(localStorage.getItem('shopmart_reg_users') || '[]');
     localStorage.setItem('shopmart_reg_users', JSON.stringify([...existing, { ...newUser, password }]));
+
+    if (isSeller) {
+      try {
+        const businessInfo = JSON.parse(localStorage.getItem('shopmart_seller_business_profile') || '{}');
+        const pendingSeller = {
+          id: `SEL-${Date.now()}`,
+          name: businessInfo.storeName || name,
+          email,
+          date: new Date().toISOString().split('T')[0],
+          products: 0,
+          status: 'Pending',
+          userAccountId: newUser.id,
+          gstin: businessInfo.gstin || '',
+          panNumber: businessInfo.panNumber || '',
+          accountNumber: businessInfo.accountNumber || '',
+          ifscCode: businessInfo.ifscCode || '',
+          pickupPincode: businessInfo.pickupPincode || '',
+        };
+        const existingApprovals = JSON.parse(localStorage.getItem('shopmart_seller_approvals') || '[]');
+        localStorage.setItem('shopmart_seller_approvals', JSON.stringify([pendingSeller, ...existingApprovals]));
+        window.dispatchEvent(new Event('storage'));
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
     setUser(newUser);
     localStorage.setItem('shopmart_user', JSON.stringify(newUser));
   };

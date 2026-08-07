@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Check, MapPin, CreditCard, Package, ChevronRight, QrCode, Landmark, Wallet, ShieldCheck, Lock, Loader2, AlertCircle, Info, DollarSign } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
@@ -17,7 +17,20 @@ export default function Checkout() {
   const [showNewAddr, setShowNewAddr] = useState(false);
   const navigate = useNavigate();
   const { items, subtotal, placeOrder } = useCart();
-  const { addresses, addAddress } = useAuth();
+  const { user, isAuthenticated, addresses, addAddress } = useAuth();
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      toast.info('Please sign in first to access checkout.');
+      navigate('/login?redirect=/checkout', { replace: true });
+    } else if (user?.role === 'admin') {
+      toast.info('Checkout is restricted to Customer accounts.');
+      navigate('/admin', { replace: true });
+    } else if (user?.role === 'seller') {
+      toast.info('Checkout is restricted to Customer accounts.');
+      navigate('/seller', { replace: true });
+    }
+  }, [isAuthenticated, user, navigate]);
 
   // Payment Verification Modal State for online modes (card, upi, netbanking)
   const [showPaymentModal, setShowPaymentModal] = useState(false);

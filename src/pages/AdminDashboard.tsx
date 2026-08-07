@@ -131,8 +131,32 @@ export default function AdminDashboard() {
   const [removalReasonInput, setRemovalReasonInput] = useState('');
 
   // Sellers State & Filtering
-  const [sellersList, setSellersList] = useState(INITIAL_SELLERS);
+  const [sellersList, setSellersList] = useState<any[]>(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('shopmart_seller_approvals') || '[]');
+      return stored.length ? [...stored, ...INITIAL_SELLERS] : INITIAL_SELLERS;
+    } catch {
+      return INITIAL_SELLERS;
+    }
+  });
   const [sellerStatusFilter, setSellerStatusFilter] = useState('All');
+
+  useEffect(() => {
+    const handleStorage = () => {
+      try {
+        const stored = JSON.parse(localStorage.getItem('shopmart_seller_approvals') || '[]');
+        if (stored.length) {
+          setSellersList(prev => {
+            const map = new Map();
+            [...stored, ...prev].forEach(item => map.set(item.id, item));
+            return Array.from(map.values());
+          });
+        }
+      } catch (e) {}
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
 
   // User Management State
   const [userList, setUserList] = useState(INITIAL_USERS);
@@ -142,6 +166,7 @@ export default function AdminDashboard() {
   // Report Management State & Action Details
   const [reportList, setReportList] = useState(INITIAL_REPORTS);
   const [reportPriorityFilter, setReportPriorityFilter] = useState('All');
+  const [reportSubTab, setReportSubTab] = useState<'active' | 'resolved'>('active');
   const [activeReportModal, setActiveReportModal] = useState<typeof INITIAL_REPORTS[0] | null>(null);
 
   // Revenue & Withdrawal State
@@ -246,6 +271,20 @@ export default function AdminDashboard() {
     phone: '+91 98765 43210',
   });
   const [passwordForm, setPasswordForm] = useState({ current: '', newPw: '', confirmPw: '' });
+  const [commissionRules, setCommissionRules] = useState(() => {
+    try {
+      const saved = localStorage.getItem('shopmart_commission_rules');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error(e);
+    }
+    return {
+      standardRate: 10.0,
+      returnReversalRate: 100,
+      minPayoutThreshold: 5000,
+      categoryTaxRate: 18.0,
+    };
+  });
 
   const adminBarData = [
     { month: 'Mar', value: 140000 },
@@ -294,8 +333,33 @@ export default function AdminDashboard() {
 
   // Seller Action Handlers
   const handleSellerAction = (sellerId: string, status: 'Active' | 'Blocked') => {
-    setSellersList(prev => prev.map(s => s.id === sellerId ? { ...s, status } : s));
-    toast.success(`Seller status updated to "${status}"`);
+    setSellersList(prev => prev.map(s => {
+      if (s.id === sellerId) {
+        const updated = { ...s, status };
+        try {
+          const approvals = JSON.parse(localStorage.getItem('shopmart_seller_approvals') || '[]');
+          const updatedApprovals = approvals.map((a: any) => (a.id === sellerId || a.email === s.email) ? { ...a, status } : a);
+          localStorage.setItem('shopmart_seller_approvals', JSON.stringify(updatedApprovals));
+
+          const registered = JSON.parse(localStorage.getItem('shopmart_reg_users') || '[]');
+          const updatedRegs = registered.map((u: any) => u.email === s.email ? { ...u, status, isApproved: status === 'Active' } : u);
+          localStorage.setItem('shopmart_reg_users', JSON.stringify(updatedRegs));
+
+          const currentUser = JSON.parse(localStorage.getItem('shopmart_user') || 'null');
+          if (currentUser && currentUser.email === s.email) {
+            currentUser.status = status;
+            currentUser.isApproved = status === 'Active';
+            localStorage.setItem('shopmart_user', JSON.stringify(currentUser));
+          }
+          window.dispatchEvent(new Event('storage'));
+        } catch (e) {
+          console.error(e);
+        }
+        return updated;
+      }
+      return s;
+    }));
+    toast.success(`Seller "${sellerId}" account status updated to "${status}"!`);
   };
 
   // User Action Handlers
@@ -502,6 +566,8 @@ export default function AdminDashboard() {
 
   // Report Action Handlers
   const handleSendSellerWarning = (reportId: string, sellerName: string) => {
+    const report = reportList.find(r => r.id === reportId);
+
     setReportList(prev => prev.map(r => r.id === reportId ? {
       ...r,
       warningSent: true,
@@ -510,6 +576,29 @@ export default function AdminDashboard() {
 
     if (activeReportModal?.id === reportId) {
       setActiveReportModal(prev => prev ? { ...prev, warningSent: true, status: prev.status === 'Open' ? 'In Progress' : prev.status } : null);
+    }
+
+    if (report) {
+      const newWarning = {
+        id: `WRN-${Date.now()}`,
+        reportId: report.id,
+        productName: report.product,
+        sellerName: report.seller || sellerName,
+        customerName: report.customer,
+        reason: report.reason,
+        priority: report.priority,
+        date: new Date().toISOString().split('T')[0],
+        message: `OFFICIAL SUPER ADMIN WARNING: Customer defect complaint received for product "${report.product}". Complaint details: "${report.reason}". Please inspect quality standards and address seller fulfillment.`,
+        status: 'Unread',
+      };
+
+      try {
+        const existing = JSON.parse(localStorage.getItem('shopmart_admin_warnings') || '[]');
+        localStorage.setItem('shopmart_admin_warnings', JSON.stringify([newWarning, ...existing]));
+        window.dispatchEvent(new Event('storage'));
+      } catch (e) {
+        console.error(e);
+      }
     }
 
     toast.success(`Official warning notification sent to seller "${sellerName}" regarding report ${reportId}!`);
@@ -633,6 +722,16 @@ export default function AdminDashboard() {
     setPasswordForm({ current: '', newPw: '', confirmPw: '' });
   };
 
+  const handleSaveCommissionRules = (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      localStorage.setItem('shopmart_commission_rules', JSON.stringify(commissionRules));
+      toast.success('Platform commission rules updated and saved successfully!');
+    } catch (err) {
+      toast.error('Failed to update commission rules.');
+    }
+  };
+
   const filteredSellers = sellersList.filter(s => {
     if (sellerStatusFilter === 'All') return true;
     return s.status.toLowerCase() === sellerStatusFilter.toLowerCase();
@@ -646,9 +745,29 @@ export default function AdminDashboard() {
     return matchesRole && matchesSearch;
   });
 
+  const handleMarkReportResolved = (reportId: string) => {
+    setReportList(prev => prev.map(r => r.id === reportId ? {
+      ...r,
+      status: 'Resolved',
+    } : r));
+    toast.success(`Ticket #${reportId} marked as solved & moved to Solved Reports Archive!`);
+    setActiveReportModal(null);
+  };
+
+  const handleReopenReport = (reportId: string) => {
+    setReportList(prev => prev.map(r => r.id === reportId ? {
+      ...r,
+      status: 'In Progress',
+    } : r));
+    toast.info(`Ticket #${reportId} reopened and moved to Active Customer Complaints.`);
+    setActiveReportModal(null);
+  };
+
   const filteredReports = reportList.filter(r => {
-    if (reportPriorityFilter === 'All') return true;
-    return r.priority.toLowerCase() === reportPriorityFilter.toLowerCase();
+    const matchesPriority = reportPriorityFilter === 'All' || r.priority.toLowerCase() === reportPriorityFilter.toLowerCase();
+    const isResolved = r.status === 'Resolved';
+    const matchesTab = reportSubTab === 'resolved' ? isResolved : !isResolved;
+    return matchesPriority && matchesTab;
   });
 
   const filteredCoupons = couponsList.filter(c => {
@@ -1396,24 +1515,68 @@ export default function AdminDashboard() {
           {/* Customer Reports */}
           {activeSection === 'reports' && (
             <div className="space-y-5">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 <div>
                   <h1 className="text-xl font-bold text-foreground">Customer Complaints & Quality Audit</h1>
-                  <p className="text-xs text-muted-foreground">Inspect customer defect reports, issue seller warnings, or unlist non-compliant listings</p>
+                  <p className="text-xs text-muted-foreground">Inspect customer defect reports, issue seller warnings, or mark tickets as solved</p>
                 </div>
 
-                <div className="flex items-center gap-1 bg-card p-1.5 rounded-xl border border-border text-xs">
-                  {['All', 'High', 'Medium', 'Low'].map(p => (
+                <div className="flex flex-wrap items-center gap-3">
+                  {/* Sub-Section Tabs: Active vs Solved Archive */}
+                  <div className="flex items-center gap-1 bg-card p-1.5 rounded-xl border border-border text-xs">
                     <button
-                      key={p}
-                      onClick={() => setReportPriorityFilter(p)}
-                      className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
-                        reportPriorityFilter === p ? 'bg-[#2874F0] text-white shadow-xs' : 'text-muted-foreground hover:text-foreground'
+                      onClick={() => setReportSubTab('active')}
+                      className={`px-3.5 py-1.5 rounded-lg font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                        reportSubTab === 'active' ? 'bg-[#2874F0] text-white shadow-xs' : 'text-muted-foreground hover:text-foreground'
                       }`}
                     >
-                      {p} Priority
+                      <Flag size={13} /> Active Complaints ({reportList.filter(r => r.status !== 'Resolved').length})
                     </button>
-                  ))}
+                    <button
+                      onClick={() => setReportSubTab('resolved')}
+                      className={`px-3.5 py-1.5 rounded-lg font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                        reportSubTab === 'resolved' ? 'bg-emerald-600 text-white shadow-xs' : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      <CheckCircle2 size={13} /> Solved Reports Archive ({reportList.filter(r => r.status === 'Resolved').length})
+                    </button>
+                  </div>
+
+                  {/* Priority Filter */}
+                  <div className="flex items-center gap-1 bg-card p-1.5 rounded-xl border border-border text-xs">
+                    {['All', 'High', 'Medium', 'Low'].map(p => (
+                      <button
+                        key={p}
+                        onClick={() => setReportPriorityFilter(p)}
+                        className={`px-2.5 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
+                          reportPriorityFilter === p ? 'bg-muted text-foreground font-black' : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                      >
+                        {p} Priority
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Sub-Section Info Ticker */}
+              <div className={`p-3.5 rounded-xl border text-xs flex items-center justify-between ${
+                reportSubTab === 'resolved'
+                  ? 'bg-emerald-50/50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/50 text-emerald-900 dark:text-emerald-200'
+                  : 'bg-blue-50/50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-900/50 text-blue-900 dark:text-blue-200'
+              }`}>
+                <div className="flex items-center gap-2 font-medium">
+                  {reportSubTab === 'resolved' ? (
+                    <>
+                      <CheckCircle2 className="text-emerald-600 shrink-0" size={16} />
+                      <span><strong>Solved Reports Sub-Section:</strong> Showing all solved customer complaints. Issues marked as resolved are archived here.</span>
+                    </>
+                  ) : (
+                    <>
+                      <AlertCircle className="text-[#2874F0] shrink-0" size={16} />
+                      <span><strong>Active Complaints Desk:</strong> Pending customer reports requiring warnings, unlisting, or resolution confirmation.</span>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -1431,35 +1594,68 @@ export default function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {filteredReports.map(r => (
-                      <tr key={r.id} className="hover:bg-muted/30 transition-colors">
-                        <td className="px-4 py-3.5 font-mono font-bold text-[#2874F0]">{r.id}</td>
-                        <td className="px-4 py-3.5">
-                          <p className="font-bold text-foreground">{r.customer}</p>
-                          <p className="text-[10px] text-muted-foreground">{r.email}</p>
-                        </td>
-                        <td className="px-4 py-3.5 font-semibold text-foreground">{r.product}</td>
-                        <td className="px-4 py-3.5 text-muted-foreground">{r.seller}</td>
-                        <td className="px-4 py-3.5">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                            r.priority === 'High' ? 'bg-rose-100 text-rose-700' : r.priority === 'Medium' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-700'
-                          }`}>
-                            {r.priority}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3.5">
-                          <span className="font-bold text-foreground">{r.status}</span>
-                        </td>
-                        <td className="px-4 py-3.5 text-right">
-                          <button
-                            onClick={() => setActiveReportModal(r)}
-                            className="px-3 py-1.5 bg-[#2874F0] hover:bg-blue-600 text-white font-bold rounded-xl text-[11px] flex items-center gap-1 ml-auto cursor-pointer shadow-xs"
-                          >
-                            <Eye size={12} /> Inspect Ticket
-                          </button>
+                    {filteredReports.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground font-semibold">
+                          {reportSubTab === 'resolved'
+                            ? 'No resolved reports in archive yet. Mark issues as solved to move them here!'
+                            : 'No active complaints matching selected filter criteria.'}
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      filteredReports.map(r => (
+                        <tr key={r.id} className="hover:bg-muted/30 transition-colors">
+                          <td className="px-4 py-3.5 font-mono font-bold text-[#2874F0]">{r.id}</td>
+                          <td className="px-4 py-3.5">
+                            <p className="font-bold text-foreground">{r.customer}</p>
+                            <p className="text-[10px] text-muted-foreground">{r.email}</p>
+                          </td>
+                          <td className="px-4 py-3.5 font-semibold text-foreground">{r.product}</td>
+                          <td className="px-4 py-3.5 text-muted-foreground">{r.seller}</td>
+                          <td className="px-4 py-3.5">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                              r.priority === 'High' ? 'bg-rose-100 text-rose-700' : r.priority === 'Medium' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-700'
+                            }`}>
+                              {r.priority}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                              r.status === 'Resolved' ? 'bg-emerald-100 text-emerald-700' : r.status === 'In Progress' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-700'
+                            }`}>
+                              ● {r.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3.5 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              {r.status !== 'Resolved' ? (
+                                <button
+                                  onClick={() => handleMarkReportResolved(r.id)}
+                                  className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-[11px] flex items-center gap-1 cursor-pointer shadow-xs transition-colors"
+                                  title="Solve and move to Solved Reports Sub-Section"
+                                >
+                                  <CheckCircle2 size={12} /> Mark Solved
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handleReopenReport(r.id)}
+                                  className="px-2.5 py-1.5 bg-muted hover:bg-muted/80 text-foreground font-bold rounded-xl text-[11px] flex items-center gap-1 cursor-pointer transition-colors border border-border"
+                                  title="Reopen ticket"
+                                >
+                                  <RefreshCw size={12} /> Reopen
+                                </button>
+                              )}
+                              <button
+                                onClick={() => setActiveReportModal(r)}
+                                className="px-3 py-1.5 bg-[#2874F0] hover:bg-blue-600 text-white font-bold rounded-xl text-[11px] flex items-center gap-1 cursor-pointer shadow-xs"
+                              >
+                                <Eye size={12} /> Inspect Ticket
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -1742,22 +1938,143 @@ export default function AdminDashboard() {
               )}
 
               {activeSettingsTab === 'commission' && (
-                <div className="bg-card rounded-2xl p-6 border border-border shadow-sm space-y-4 max-w-xl text-xs">
-                  <h2 className="text-sm font-bold text-foreground flex items-center gap-2 border-b border-border pb-3">
-                    <DollarSign className="text-[#2874F0]" size={18} /> Platform Commission Rules
-                  </h2>
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div className="p-4 bg-muted/30 rounded-xl border border-border space-y-1">
-                      <p className="font-bold text-foreground">Standard Commission Rate</p>
-                      <p className="text-2xl font-black text-[#2874F0]">10.0%</p>
-                      <p className="text-[10px] text-muted-foreground">Applied to all seller completed orders</p>
+                <div className="bg-card rounded-2xl p-6 border border-border shadow-sm space-y-6 max-w-2xl text-xs">
+                  <div className="flex items-center justify-between border-b border-border pb-3">
+                    <div>
+                      <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
+                        <DollarSign className="text-[#2874F0]" size={18} /> Platform Commission & Tax Rules
+                      </h2>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        Adjust standard rates, return reversal percentages, and minimum payout thresholds.
+                      </p>
                     </div>
-                    <div className="p-4 bg-muted/30 rounded-xl border border-border space-y-1">
-                      <p className="font-bold text-foreground">Return Commission Reversal</p>
-                      <p className="text-2xl font-black text-rose-600">100%</p>
-                      <p className="text-[10px] text-muted-foreground">Deducted from admin on approved customer return</p>
+                    <span className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold px-2.5 py-1 rounded-full text-[10px] flex items-center gap-1 border border-emerald-500/20">
+                      <CheckCircle size={12} /> Live Rules Active
+                    </span>
+                  </div>
+
+                  {/* Live Rule Cards Preview */}
+                  <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="p-3.5 bg-muted/30 rounded-xl border border-border space-y-1">
+                      <p className="font-semibold text-muted-foreground text-[11px]">Standard Rate</p>
+                      <p className="text-xl font-black text-[#2874F0]">{commissionRules.standardRate}%</p>
+                      <p className="text-[10px] text-muted-foreground">On completed orders</p>
+                    </div>
+                    <div className="p-3.5 bg-muted/30 rounded-xl border border-border space-y-1">
+                      <p className="font-semibold text-muted-foreground text-[11px]">Return Reversal</p>
+                      <p className="text-xl font-black text-rose-600">{commissionRules.returnReversalRate}%</p>
+                      <p className="text-[10px] text-muted-foreground">Deducted on return</p>
+                    </div>
+                    <div className="p-3.5 bg-muted/30 rounded-xl border border-border space-y-1">
+                      <p className="font-semibold text-muted-foreground text-[11px]">Min Withdrawal</p>
+                      <p className="text-xl font-black text-amber-600">{formatPrice(commissionRules.minPayoutThreshold || 5000)}</p>
+                      <p className="text-[10px] text-muted-foreground">Min seller payout</p>
+                    </div>
+                    <div className="p-3.5 bg-muted/30 rounded-xl border border-border space-y-1">
+                      <p className="font-semibold text-muted-foreground text-[11px]">GST / Tax Rate</p>
+                      <p className="text-xl font-black text-purple-600">{commissionRules.categoryTaxRate || 18}%</p>
+                      <p className="text-[10px] text-muted-foreground">Applicable tax rate</p>
                     </div>
                   </div>
+
+                  {/* Commission Edit Form */}
+                  <form onSubmit={handleSaveCommissionRules} className="space-y-4 pt-2 border-t border-border">
+                    <h3 className="font-bold text-foreground text-xs uppercase tracking-wider text-muted-foreground">
+                      Adjust Rule Values
+                    </h3>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block font-semibold text-foreground mb-1">
+                          Standard Commission Rate (%)
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            max="100"
+                            value={commissionRules.standardRate}
+                            onChange={e => setCommissionRules({ ...commissionRules, standardRate: parseFloat(e.target.value) || 0 })}
+                            className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-foreground font-bold outline-none focus:ring-2 focus:ring-[#2874F0]"
+                            required
+                          />
+                          <span className="absolute right-3 top-2.5 text-muted-foreground font-bold">%</span>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground mt-1">Percentage charged on each completed seller sale.</p>
+                      </div>
+
+                      <div>
+                        <label className="block font-semibold text-foreground mb-1">
+                          Return Commission Reversal Rate (%)
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            step="1"
+                            min="0"
+                            max="100"
+                            value={commissionRules.returnReversalRate}
+                            onChange={e => setCommissionRules({ ...commissionRules, returnReversalRate: parseFloat(e.target.value) || 0 })}
+                            className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-foreground font-bold outline-none focus:ring-2 focus:ring-[#2874F0]"
+                            required
+                          />
+                          <span className="absolute right-3 top-2.5 text-muted-foreground font-bold">%</span>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground mt-1">Percentage of commission refunded when a customer return is approved.</p>
+                      </div>
+
+                      <div>
+                        <label className="block font-semibold text-foreground mb-1">
+                          Minimum Seller Withdrawal Limit (₹)
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            step="100"
+                            min="0"
+                            value={commissionRules.minPayoutThreshold}
+                            onChange={e => setCommissionRules({ ...commissionRules, minPayoutThreshold: parseFloat(e.target.value) || 0 })}
+                            className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-foreground font-bold outline-none focus:ring-2 focus:ring-[#2874F0]"
+                            required
+                          />
+                          <span className="absolute right-3 top-2.5 text-muted-foreground font-bold">₹</span>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground mt-1">Minimum wallet balance required for sellers to request payouts.</p>
+                      </div>
+
+                      <div>
+                        <label className="block font-semibold text-foreground mb-1">
+                          GST / Platform Service Tax Rate (%)
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            step="0.5"
+                            min="0"
+                            max="50"
+                            value={commissionRules.categoryTaxRate}
+                            onChange={e => setCommissionRules({ ...commissionRules, categoryTaxRate: parseFloat(e.target.value) || 0 })}
+                            className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-foreground font-bold outline-none focus:ring-2 focus:ring-[#2874F0]"
+                            required
+                          />
+                          <span className="absolute right-3 top-2.5 text-muted-foreground font-bold">%</span>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground mt-1">Default GST tax applied on marketplace service transactions.</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-3 border-t border-border">
+                      <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                        <AlertCircle size={13} className="text-amber-500" /> Changes apply immediately across seller payouts and commission calculations.
+                      </p>
+                      <button
+                        type="submit"
+                        className="bg-[#2874F0] hover:bg-blue-600 text-white font-bold px-5 py-2.5 rounded-xl text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                      >
+                        <Save size={14} /> Save Commission Rules
+                      </button>
+                    </div>
+                  </form>
                 </div>
               )}
             </div>
@@ -2060,8 +2377,24 @@ export default function AdminDashboard() {
               </div>
 
               <div className="space-y-2 pt-2 border-t border-border">
-                <p className="font-bold text-foreground">Admin Enforcement Actions:</p>
+                <p className="font-bold text-foreground">Admin Enforcement & Resolution Actions:</p>
                 <div className="flex flex-col gap-2">
+                  {activeReportModal.status !== 'Resolved' ? (
+                    <button
+                      onClick={() => handleMarkReportResolved(activeReportModal.id)}
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-sm"
+                    >
+                      <CheckCircle2 size={14} /> Mark Ticket as Solved & Move to Archive
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleReopenReport(activeReportModal.id)}
+                      className="w-full bg-muted hover:bg-muted/80 text-foreground font-bold py-2 rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer border border-border"
+                    >
+                      <RefreshCw size={14} /> Reopen Ticket into Active Complaints
+                    </button>
+                  )}
+
                   <button
                     onClick={() => handleSendSellerWarning(activeReportModal.id, activeReportModal.seller)}
                     className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 rounded-xl flex items-center justify-center gap-1.5 transition-colors cursor-pointer"

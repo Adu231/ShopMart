@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Minus, Plus, Trash2, ShoppingBag, Tag, ArrowRight } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
@@ -6,13 +6,25 @@ import { useAuth } from '@/context/AuthContext';
 import { formatPrice } from '@/lib/utils';
 import { COUPONS } from '@/constants/data';
 import { toast } from 'sonner';
+import LoginRequiredModal from '@/components/modals/LoginRequiredModal';
 
 export default function Cart() {
   const { items, removeFromCart, updateQuantity, subtotal } = useCart();
-  const { isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<typeof COUPONS[0] | null>(null);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+
+  useEffect(() => {
+    if (user?.role === 'admin') {
+      toast.info('Product purchasing is restricted to Customer accounts.');
+      navigate('/admin', { replace: true });
+    } else if (user?.role === 'seller') {
+      toast.info('Product purchasing is restricted to Customer accounts.');
+      navigate('/seller', { replace: true });
+    }
+  }, [user, navigate]);
 
   const applyCoupon = () => {
     const coupon = COUPONS.find(c => c.code.toUpperCase() === couponCode.toUpperCase());
@@ -30,7 +42,10 @@ export default function Cart() {
   const total = subtotal - discount + delivery;
 
   const handleCheckout = () => {
-    if (!isAuthenticated) { navigate('/login?redirect=/checkout'); return; }
+    if (!isAuthenticated) {
+      setShowLoginModal(true);
+      return;
+    }
     navigate('/checkout');
   };
 
@@ -117,13 +132,20 @@ export default function Cart() {
                 </div>
                 {discount > 0 && <p className="text-green-600 font-semibold text-xs text-right">You save {formatPrice(discount)} 🎉</p>}
               </div>
-              <button onClick={handleCheckout} className="w-full mt-4 bg-[#FB641B] hover:bg-[#e55a18] text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-colors">
+              <button onClick={handleCheckout} className="w-full mt-4 bg-[#FB641B] hover:bg-[#e55a18] text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-colors cursor-pointer">
                 Place Order <ArrowRight size={16} />
               </button>
             </div>
           </div>
         </div>
       </div>
+
+      <LoginRequiredModal
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        actionText="checkout and place orders"
+        redirectUrl="/checkout"
+      />
     </div>
   );
 }

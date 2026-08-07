@@ -33,10 +33,18 @@ export default function Navbar() {
 
   const handleLogout = () => { logout(); setUserOpen(false); navigate('/'); };
 
-  const getDashboardLink = () => {
-    if (user?.role === 'admin') return '/admin';
-    if (user?.role === 'seller') return '/seller';
-    return '/dashboard';
+  const getDropdownNav = () => {
+    if (user?.role === 'admin') {
+      return [{ to: '/admin', icon: LayoutDashboard, label: 'Admin Panel' }];
+    }
+    if (user?.role === 'seller') {
+      return [{ to: '/seller', icon: LayoutDashboard, label: 'Seller Panel' }];
+    }
+    return [
+      { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+      { to: '/orders', icon: Package, label: 'My Orders' },
+      { to: '/wishlist', icon: Heart, label: 'Wishlist' },
+    ];
   };
 
   return (
@@ -75,36 +83,38 @@ export default function Navbar() {
                     <p className="text-xs text-gray-500 truncate">{user?.email}</p>
                     <span className="text-[10px] bg-blue-100 dark:bg-blue-900 text-[#2874F0] dark:text-blue-300 px-1.5 py-0.5 rounded capitalize mt-1 inline-block">{user?.role}</span>
                   </div>
-                  {[
-                    { to: getDashboardLink(), icon: LayoutDashboard, label: 'Dashboard' },
-                    { to: '/orders', icon: Package, label: 'My Orders' },
-                    { to: '/wishlist', icon: Heart, label: 'Wishlist' },
-                  ].map(({ to, icon: Icon, label }) => (
+                  {getDropdownNav().map(({ to, icon: Icon, label }) => (
                     <Link key={to} to={to} onClick={() => setUserOpen(false)} className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300">
                       <Icon size={14} /> {label}
                     </Link>
                   ))}
-                  <button onClick={handleLogout} className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 w-full border-t border-gray-100 dark:border-gray-700">
+                  <button onClick={handleLogout} className="flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 w-full border-t border-gray-100 dark:border-gray-700 font-medium cursor-pointer">
                     <LogOut size={14} /> Logout
                   </button>
                 </div>
               )}
             </div>
 
-            {[
-              { to: '/wishlist', icon: Heart, label: 'Wishlist', count: wishlistCount },
-              { to: '/cart', icon: ShoppingCart, label: 'Cart', count: totalItems },
-            ].map(({ to, icon: Icon, label, count }) => (
-              <Link key={to} to={to} className="relative flex items-center gap-1 text-white hover:bg-blue-600 px-2.5 py-1.5 rounded text-sm font-medium transition-colors">
-                <Icon size={16} />
-                <span className="hidden md:block">{label}</span>
-                {count > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-[#FB641B] text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-bold">
-                    {count > 9 ? '9+' : count}
-                  </span>
-                )}
+            {(!user || user.role === 'customer') ? (
+              [
+                { to: '/wishlist', icon: Heart, label: 'Wishlist', count: wishlistCount },
+                { to: '/cart', icon: ShoppingCart, label: 'Cart', count: totalItems },
+              ].map(({ to, icon: Icon, label, count }) => (
+                <Link key={to} to={to} className="relative flex items-center gap-1 text-white hover:bg-blue-600 px-2.5 py-1.5 rounded text-sm font-medium transition-colors">
+                  <Icon size={16} />
+                  <span className="hidden md:block">{label}</span>
+                  {count > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-[#FB641B] text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center font-bold">
+                      {count > 9 ? '9+' : count}
+                    </span>
+                  )}
+                </Link>
+              ))
+            ) : (
+              <Link to={user.role === 'admin' ? '/admin' : '/seller'} className="hidden md:flex items-center gap-1.5 bg-white/15 hover:bg-white/25 text-white px-3 py-1.5 rounded text-xs font-semibold transition-colors border border-white/20">
+                <LayoutDashboard size={14} /> {user.role === 'admin' ? 'Admin Dashboard' : 'Seller Dashboard'}
               </Link>
-            ))}
+            )}
 
             <button onClick={toggleTheme} className="text-white hover:bg-blue-600 p-1.5 rounded transition-colors">
               {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}

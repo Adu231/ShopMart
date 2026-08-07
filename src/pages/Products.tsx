@@ -1,6 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { SlidersHorizontal, X, ChevronDown, ChevronUp, Grid, List } from 'lucide-react';
+import { SlidersHorizontal, X, ChevronDown, ChevronUp, Grid } from 'lucide-react';
 import { PRODUCTS, CATEGORIES, BRAND_NAMES } from '@/constants/data';
 import ProductCard from '@/components/features/ProductCard';
 
@@ -28,6 +28,24 @@ export default function Products() {
   const [selectedBrands, setSelectedBrands] = useState<string[]>(selectedBrand ? [selectedBrand] : []);
   const [selectedCategories, setSelectedCategories] = useState<string[]>(selectedCategory ? [selectedCategory] : []);
 
+  // Synchronize category state when URL search param changes (e.g. clicking category in navbar)
+  useEffect(() => {
+    if (selectedCategory) {
+      setSelectedCategories([selectedCategory]);
+    } else {
+      setSelectedCategories([]);
+    }
+  }, [selectedCategory]);
+
+  // Synchronize brand state when URL search param changes
+  useEffect(() => {
+    if (selectedBrand) {
+      setSelectedBrands([selectedBrand]);
+    } else {
+      setSelectedBrands([]);
+    }
+  }, [selectedBrand]);
+
   const filtered = useMemo(() => {
     let list = [...PRODUCTS];
     if (q) list = list.filter(p => p.name.toLowerCase().includes(q.toLowerCase()) || p.brand.toLowerCase().includes(q.toLowerCase()) || p.tags.some(t => t.includes(q.toLowerCase())));
@@ -45,9 +63,42 @@ export default function Products() {
     }
   }, [q, selectedCategories, selectedBrands, minPrice, maxPrice, minRating, sort]);
 
-  const toggleCategory = (cat: string) => setSelectedCategories(prev => prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]);
-  const toggleBrand = (brand: string) => setSelectedBrands(prev => prev.includes(brand) ? prev.filter(b => b !== brand) : [...prev, brand]);
-  const clearAll = () => { setSelectedCategories([]); setSelectedBrands([]); setMinPrice(0); setMaxPrice(200000); setMinRating(0); setParams({}); };
+  const toggleCategory = (cat: string) => {
+    const next = selectedCategories.includes(cat)
+      ? selectedCategories.filter(c => c !== cat)
+      : [...selectedCategories, cat];
+    setSelectedCategories(next);
+    const newParams = new URLSearchParams(params);
+    if (next.length === 1) {
+      newParams.set('category', next[0]);
+    } else {
+      newParams.delete('category');
+    }
+    setParams(newParams);
+  };
+
+  const toggleBrand = (brand: string) => {
+    const next = selectedBrands.includes(brand)
+      ? selectedBrands.filter(b => b !== brand)
+      : [...selectedBrands, brand];
+    setSelectedBrands(next);
+    const newParams = new URLSearchParams(params);
+    if (next.length === 1) {
+      newParams.set('brand', next[0]);
+    } else {
+      newParams.delete('brand');
+    }
+    setParams(newParams);
+  };
+
+  const clearAll = () => {
+    setSelectedCategories([]);
+    setSelectedBrands([]);
+    setMinPrice(0);
+    setMaxPrice(500000);
+    setMinRating(0);
+    setParams({});
+  };
 
   const FilterSection = ({ title, id, children }: { title: string; id: string; children: React.ReactNode }) => (
     <div className="border-b border-border pb-3 mb-3">

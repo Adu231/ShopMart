@@ -1,10 +1,11 @@
-import { ReactNode } from 'react';
+import { ReactNode, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Package, Heart, MapPin, Bell, Settings, ChevronLeft, LogOut, ArrowLeft, Wallet } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
 import { useWishlist } from '@/context/WishlistContext';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 const NAV_ITEMS = [
   { icon: LayoutDashboard, label: 'Overview', to: '/dashboard' },
@@ -28,6 +29,16 @@ export default function CustomerLayout({ children, title, showBackToDashboard = 
   const { wishlistCount } = useWishlist();
   const { pathname } = useLocation();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user?.role === 'admin') {
+      toast.info('Customer panel and order history are restricted for Admin accounts.');
+      navigate('/admin', { replace: true });
+    } else if (user?.role === 'seller') {
+      toast.info('Customer panel and order history are restricted for Seller accounts.');
+      navigate('/seller', { replace: true });
+    }
+  }, [user, navigate]);
 
   const handleLogout = () => { logout(); navigate('/'); };
 

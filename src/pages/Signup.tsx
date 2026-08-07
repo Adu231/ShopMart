@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Eye, EyeOff, UserPlus, CheckCircle2, ShieldCheck, ArrowRight, Chrome, Apple, AlertCircle, Sparkles, User, Store, Sun, Moon } from 'lucide-react';
+import { Eye, EyeOff, UserPlus, CheckCircle2, ShieldCheck, ArrowRight, Chrome, Apple, AlertCircle, Sparkles, User, Store, Sun, Moon, Building2, Landmark, CreditCard, MapPin } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { toast } from 'sonner';
@@ -10,7 +10,20 @@ export default function Signup() {
   const initialRole = params.get('role') === 'seller' ? 'seller' : 'customer';
 
   const [role, setRole] = useState<'customer' | 'seller'>(initialRole);
-  const [form, setForm] = useState({ name: '', email: '', password: '', confirm: '' });
+  const [form, setForm] = useState({
+    name: '',
+    email: '',
+    password: '',
+    confirm: '',
+    // Seller Business Fields
+    storeName: '',
+    gstin: '',
+    panNumber: '',
+    accountNumber: '',
+    ifscCode: '',
+    businessAddress: '',
+    pickupPincode: '',
+  });
   const [showPw, setShowPw] = useState(false);
   const [agreeTerms, setAgreeTerms] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -48,6 +61,16 @@ export default function Signup() {
     if (!form.email.includes('@')) e.email = 'Valid email address required';
     if (form.password.length < 6) e.password = 'Password must be at least 6 characters';
     if (form.password !== form.confirm) e.confirm = 'Passwords do not match';
+
+    if (role === 'seller') {
+      if (!form.storeName.trim()) e.storeName = 'Store/Business Name is required';
+      if (!form.gstin.trim() || form.gstin.length < 15) e.gstin = 'Valid 15-digit GSTIN required';
+      if (!form.panNumber.trim() || form.panNumber.length < 10) e.panNumber = 'Valid 10-character PAN required';
+      if (!form.accountNumber.trim()) e.accountNumber = 'Bank Account Number required';
+      if (!form.ifscCode.trim()) e.ifscCode = 'Bank IFSC Code required';
+      if (!form.pickupPincode.trim() || form.pickupPincode.length < 6) e.pickupPincode = 'Valid 6-digit Pincode required';
+    }
+
     if (!agreeTerms) e.terms = 'You must accept the terms and conditions';
     return e;
   };
@@ -61,7 +84,24 @@ export default function Signup() {
     }
 
     setLoading(true);
-    await signup(form.name, form.email, form.password);
+    await signup(form.name, form.email, form.password, role);
+
+    if (role === 'seller') {
+      const sellerProfile = {
+        storeName: form.storeName.trim(),
+        gstin: form.gstin.trim(),
+        panNumber: form.panNumber.trim(),
+        accountNumber: form.accountNumber.trim(),
+        ifscCode: form.ifscCode.trim(),
+        businessAddress: form.businessAddress.trim(),
+        pickupPincode: form.pickupPincode.trim(),
+        registeredAt: new Date().toISOString(),
+      };
+      try {
+        localStorage.setItem('shopmart_seller_business_profile', JSON.stringify(sellerProfile));
+      } catch (err) {}
+    }
+
     setLoading(false);
 
     toast.success(`Account created successfully!`, {
@@ -279,6 +319,108 @@ export default function Signup() {
                 </div>
                 <div className="w-full bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden">
                   <div className={`h-full ${strengthInfo.color} ${strengthInfo.width} transition-all duration-300`} />
+                </div>
+              </div>
+            )}
+
+            {/* SELLER BUSINESS DETAILS FIELDS */}
+            {role === 'seller' && (
+              <div className="space-y-3 pt-3 pb-2 border-t border-slate-200 dark:border-slate-800 animate-in fade-in duration-200">
+                <div className="flex items-center gap-2 text-xs font-bold text-[#2874F0] dark:text-blue-400 uppercase tracking-wider">
+                  <Building2 size={15} /> Verified Seller Business Profile
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Store / Business Name *</label>
+                    <input
+                      type="text"
+                      value={form.storeName}
+                      onChange={e => setField('storeName', e.target.value)}
+                      placeholder="e.g. Woodcraft Hub Store"
+                      className="w-full bg-slate-50 dark:bg-slate-800/90 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:border-[#2874F0]"
+                    />
+                    {errors.storeName && <p className="text-rose-500 text-[11px] mt-1">{errors.storeName}</p>}
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">GSTIN Number *</label>
+                    <input
+                      type="text"
+                      value={form.gstin}
+                      onChange={e => setField('gstin', e.target.value.toUpperCase())}
+                      placeholder="e.g. 27AAACB1234C1Z5"
+                      maxLength={15}
+                      className="w-full bg-slate-50 dark:bg-slate-800/90 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2 text-sm font-mono text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:border-[#2874F0]"
+                    />
+                    {errors.gstin && <p className="text-rose-500 text-[11px] mt-1">{errors.gstin}</p>}
+                  </div>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Business PAN Number *</label>
+                    <input
+                      type="text"
+                      value={form.panNumber}
+                      onChange={e => setField('panNumber', e.target.value.toUpperCase())}
+                      placeholder="e.g. AAACB1234C"
+                      maxLength={10}
+                      className="w-full bg-slate-50 dark:bg-slate-800/90 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2 text-sm font-mono text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:border-[#2874F0]"
+                    />
+                    {errors.panNumber && <p className="text-rose-500 text-[11px] mt-1">{errors.panNumber}</p>}
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Pickup Warehouse Pincode *</label>
+                    <input
+                      type="text"
+                      value={form.pickupPincode}
+                      onChange={e => setField('pickupPincode', e.target.value)}
+                      placeholder="e.g. 560001"
+                      maxLength={6}
+                      className="w-full bg-slate-50 dark:bg-slate-800/90 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2 text-sm font-mono text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:border-[#2874F0]"
+                    />
+                    {errors.pickupPincode && <p className="text-rose-500 text-[11px] mt-1">{errors.pickupPincode}</p>}
+                  </div>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Bank Account Number *</label>
+                    <input
+                      type="text"
+                      value={form.accountNumber}
+                      onChange={e => setField('accountNumber', e.target.value)}
+                      placeholder="e.g. 50100234819201"
+                      className="w-full bg-slate-50 dark:bg-slate-800/90 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2 text-sm font-mono text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:border-[#2874F0]"
+                    />
+                    {errors.accountNumber && <p className="text-rose-500 text-[11px] mt-1">{errors.accountNumber}</p>}
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Bank IFSC Code *</label>
+                    <input
+                      type="text"
+                      value={form.ifscCode}
+                      onChange={e => setField('ifscCode', e.target.value.toUpperCase())}
+                      placeholder="e.g. HDFC0000240"
+                      maxLength={11}
+                      className="w-full bg-slate-50 dark:bg-slate-800/90 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2 text-sm font-mono text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:border-[#2874F0]"
+                    />
+                    {errors.ifscCode && <p className="text-rose-500 text-[11px] mt-1">{errors.ifscCode}</p>}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Registered Business Address</label>
+                  <input
+                    type="text"
+                    value={form.businessAddress}
+                    onChange={e => setField('businessAddress', e.target.value)}
+                    placeholder="e.g. Plot 12, Industrial Woodcraft Zone, Bangalore, KA"
+                    className="w-full bg-slate-50 dark:bg-slate-800/90 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-white placeholder-slate-400 outline-none focus:border-[#2874F0]"
+                  />
                 </div>
               </div>
             )}
