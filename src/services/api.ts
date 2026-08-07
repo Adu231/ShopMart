@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://shopmart-backend-og5a.onrender.com/api';
 
 async function fetchJson(endpoint: string, options: RequestInit = {}) {
   try {
