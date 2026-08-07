@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { PRODUCTS, TRENDING_IDS, BEST_SELLER_IDS, NEW_ARRIVAL_IDS } from '@/constants/data';
 import ProductCard from './ProductCard';
+import { api } from '@/services/api';
 
 const TABS = [
   { key: 'trending', label: 'Trending Now', ids: TRENDING_IDS },
@@ -11,8 +12,19 @@ const TABS = [
 
 export default function FeaturedProducts() {
   const [activeTab, setActiveTab] = useState('trending');
+  const [apiProducts, setApiProducts] = useState<any[]>(PRODUCTS);
+
+  useEffect(() => {
+    api.products.getAll().then(res => {
+      if (res && res.success && Array.isArray(res.products) && res.products.length > 0) {
+        setApiProducts(res.products);
+      }
+    });
+  }, []);
+
   const tab = TABS.find(t => t.key === activeTab)!;
-  const products = PRODUCTS.filter(p => tab.ids.includes(p.id));
+  const filteredFromApi = apiProducts.filter(p => tab.ids.includes(p.id));
+  const products = filteredFromApi.length > 0 ? filteredFromApi : apiProducts.slice(0, 5);
 
   return (
     <section className="bg-card rounded shadow-sm p-4 md:p-5">
@@ -32,3 +44,4 @@ export default function FeaturedProducts() {
     </section>
   );
 }
+

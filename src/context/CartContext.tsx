@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import type { CartItem, Product, Order } from '@/types';
 import { PRODUCTS } from '@/constants/data';
+import { api } from '@/services/api';
 
 interface CartContextType {
   items: CartItem[];
@@ -100,6 +101,57 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     }
   });
 
+  // Fetch live orders from Render backend
+  useEffect(() => {
+    api.orders.getAll().then(res => {
+      if (res && res.success && Array.isArray(res.orders) && res.orders.length > 0) {
+        const formattedOrders: Order[] = res.orders.map((o: any) => ({
+          id: o.id,
+          createdAt: o.createdAt || new Date().toISOString(),
+          status: o.status || 'placed',
+          totalAmount: Number(o.amount) || Number(o.totalAmount) || 19999,
+          items: o.items || [
+            {
+              product: {
+                id: o.productId || 'p1',
+                name: o.productName || 'Handcrafted Furniture Item',
+                category: 'Living Room',
+                price: Number(o.amount) || 19999,
+                originalPrice: Number(o.amount) ? Number(o.amount) + 5000 : 24999,
+                discount: 20,
+                rating: 4.8,
+                reviewCount: 12,
+                images: ['https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=800&q=80'],
+                description: 'Premium Solid Teak Wood Furniture',
+                inStock: true,
+                stockCount: 10,
+                seller: 'Woodcraft Seller',
+                isNew: true,
+              },
+              quantity: 1,
+            }
+          ],
+          shippingAddress: typeof o.address === 'object' ? o.address : {
+            fullName: o.customerName || 'Priya Customer',
+            phone: '9876543210',
+            street: o.address || '102, WoodNest Heights, Indiranagar',
+            city: 'Bengaluru',
+            state: 'Karnataka',
+            pincode: '560038',
+          },
+          paymentMethod: o.paymentMethod || 'UPI (Google Pay)',
+        }));
+        setOrders(prev => {
+          const merged = [...formattedOrders];
+          prev.forEach(p => {
+            if (!merged.some(m => m.id === p.id)) merged.push(p);
+          });
+          return merged;
+        });
+      }
+    });
+  }, []);
+
   useEffect(() => { localStorage.setItem('shopmart_cart', JSON.stringify(items)); }, [items]);
   useEffect(() => { localStorage.setItem('shopmart_orders', JSON.stringify(orders)); }, [orders]);
 
@@ -123,12 +175,29 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const placeOrder = (orderData: Omit<Order, 'id' | 'createdAt'>): string => {
     const orderId = `ORD-WOOD-${Math.floor(1000 + Math.random() * 9000)}`;
     const newOrder: Order = { ...orderData, id: orderId, createdAt: new Date().toISOString() };
+    
+    // Call backend orders endpoint
+    api.orders.create({
+      customerName: orderData.shippingAddress.fullName,
+      customerEmail: 'customer@demo.com',
+      productName: orderData.items[0]?.product.name || 'Woodcraft Furniture Item',
+      productId: orderData.items[0]?.product.id || 'p1',
+      totalAmount: orderData.totalAmount,
+      address: `${orderData.shippingAddress.street}, ${orderData.shippingAddress.city}, ${orderData.shippingAddress.state} - ${orderData.shippingAddress.pincode}`,
+      paymentMethod: orderData.paymentMethod,
+    }).then(res => {
+      if (res && res.success && res.order && res.order.id) {
+        newOrder.id = res.order.id;
+      }
+    });
+
     setOrders(prev => [newOrder, ...prev]);
     clearCart();
     return orderId;
   };
 
   const updateOrderStatus = (orderId: string, status: Order['status']) => {
+    api.orders.updateStatus(orderId, status);
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o));
   };
 

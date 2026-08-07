@@ -50,12 +50,19 @@ export default function Products() {
   const [productList, setProductList] = useState<any[]>(PRODUCTS);
 
   useEffect(() => {
-    api.products.getAll().then(res => {
+    const paramsToPass: Record<string, string> = {};
+    if (q) paramsToPass.q = q;
+    if (selectedCategories.length === 1) paramsToPass.category = selectedCategories[0];
+    if (selectedBrands.length === 1) paramsToPass.brand = selectedBrands[0];
+    if (minPrice > 0) paramsToPass.minPrice = String(minPrice);
+    if (maxPrice < 500000) paramsToPass.maxPrice = String(maxPrice);
+
+    api.products.getAll(paramsToPass).then(res => {
       if (res && res.success && Array.isArray(res.products) && res.products.length > 0) {
         setProductList(res.products);
       }
     });
-  }, []);
+  }, [q, selectedCategories, selectedBrands, minPrice, maxPrice]);
 
   const filtered = useMemo(() => {
     let list = [...productList];

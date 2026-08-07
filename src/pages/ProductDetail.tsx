@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Heart, ShoppingCart, Zap, Star, Truck, RefreshCcw, Shield, ChevronRight, Minus, Plus, Store, CheckCircle2, ThumbsUp, PenSquare, MessageSquare, User, X } from 'lucide-react';
 import { PRODUCTS } from '@/constants/data';
@@ -9,6 +9,7 @@ import { useAuth } from '@/context/AuthContext';
 import ProductCard from '@/components/features/ProductCard';
 import { toast } from 'sonner';
 import LoginRequiredModal from '@/components/modals/LoginRequiredModal';
+import { api } from '@/services/api';
 
 const INITIAL_PRODUCT_REVIEWS = [
   {
@@ -77,8 +78,21 @@ export default function ProductDetail() {
     comment: '',
   });
 
+  const [backendProduct, setBackendProduct] = useState<any>(null);
+
+  useEffect(() => {
+    if (id) {
+      api.products.getById(id).then(res => {
+        if (res && res.success && res.product) {
+          setBackendProduct(res.product);
+        }
+      });
+    }
+  }, [id]);
+
   // Dynamic Product Resolution (Searches static PRODUCTS, localStorage, or constructs dynamic fallback)
   const getProduct = () => {
+    if (backendProduct) return backendProduct;
     if (!id) return PRODUCTS[0];
     const staticFound = PRODUCTS.find(p => p.id === id);
     if (staticFound) return staticFound;

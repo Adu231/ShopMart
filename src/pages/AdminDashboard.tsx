@@ -303,6 +303,39 @@ export default function AdminDashboard() {
   }, [isAuthenticated, user]);
 
   useEffect(() => {
+    // Fetch live backend data from Render API
+    api.admin.getCommissionRules().then(res => {
+      if (res && res.success && res.commissionRules) {
+        setCommissionRules(prev => ({ ...prev, ...res.commissionRules }));
+      }
+    });
+
+    api.admin.getSellers().then(res => {
+      if (res && res.success && Array.isArray(res.sellers) && res.sellers.length > 0) {
+        setSellersList(res.sellers);
+      }
+    });
+
+    api.reports.getAll().then(res => {
+      if (res && res.success && Array.isArray(res.reports) && res.reports.length > 0) {
+        setReportList(res.reports);
+      }
+    });
+
+    api.products.getAll().then(res => {
+      if (res && res.success && Array.isArray(res.products) && res.products.length > 0) {
+        setProductList(res.products);
+      }
+    });
+
+    api.auth.getUsers().then(res => {
+      if (res && res.success && Array.isArray(res.users) && res.users.length > 0) {
+        setUserList(res.users);
+      }
+    });
+  }, []);
+
+  useEffect(() => {
     try {
       localStorage.setItem('shopmart_coupons', JSON.stringify(couponsList));
     } catch (e) {
@@ -334,6 +367,7 @@ export default function AdminDashboard() {
 
   // Seller Action Handlers
   const handleSellerAction = (sellerId: string, status: 'Active' | 'Blocked') => {
+    api.admin.approveSeller(sellerId, status);
     setSellersList(prev => prev.map(s => {
       if (s.id === sellerId) {
         const updated = { ...s, status };

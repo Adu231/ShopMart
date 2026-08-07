@@ -48,6 +48,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (apiRes && apiRes.success && apiRes.user) {
       setUser(apiRes.user);
       localStorage.setItem('shopmart_user', JSON.stringify(apiRes.user));
+      if (apiRes.token) {
+        localStorage.setItem('shopmart_token', apiRes.token);
+      }
       return true;
     }
 
@@ -56,6 +59,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const { password: _, ...u } = demo;
       setUser(u);
       localStorage.setItem('shopmart_user', JSON.stringify(u));
+      localStorage.setItem('shopmart_token', `demo_token_${u.id}`);
       return true;
     }
     const registered: (User & { password: string })[] = JSON.parse(localStorage.getItem('shopmart_reg_users') || '[]');
@@ -72,6 +76,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       } catch (e) {}
       setUser(u);
       localStorage.setItem('shopmart_user', JSON.stringify(u));
+      localStorage.setItem('shopmart_token', `reg_token_${u.id}`);
       return true;
     }
     return false;
@@ -82,7 +87,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const businessInfo = isSeller ? JSON.parse(localStorage.getItem('shopmart_seller_business_profile') || '{}') : {};
 
     // Call REST API backend signup endpoint
-    await api.auth.signup({
+    const signupRes = await api.auth.signup({
       name,
       email,
       password,
@@ -90,7 +95,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       ...businessInfo,
     });
 
-    const newUser: User = {
+    const newUser: User = (signupRes && signupRes.user) ? signupRes.user : {
       id: `u_${Date.now()}`,
       name,
       email,
@@ -128,11 +133,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     setUser(newUser);
     localStorage.setItem('shopmart_user', JSON.stringify(newUser));
+    localStorage.setItem('shopmart_token', `signup_token_${newUser.id}`);
   };
 
   const logout = () => {
     setUser(null);
     localStorage.removeItem('shopmart_user');
+    localStorage.removeItem('shopmart_token');
   };
 
   const addAddress = (addr: Omit<Address, 'id'>) => {

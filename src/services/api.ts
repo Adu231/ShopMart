@@ -2,12 +2,16 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://shopmart-backend-o
 
 async function fetchJson(endpoint: string, options: RequestInit = {}) {
   try {
+    const token = localStorage.getItem('shopmart_token');
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options.headers as Record<string, string> || {}),
+    };
+
     const res = await fetch(`${API_BASE_URL}${endpoint}`, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
       ...options,
+      headers,
     });
     const data = await res.json();
     return data;
@@ -18,6 +22,11 @@ async function fetchJson(endpoint: string, options: RequestInit = {}) {
 }
 
 export const api = {
+  // Health API
+  health: {
+    check: () => fetchJson('/health'),
+  },
+
   // Auth API
   auth: {
     login: (credentials: { email: string; password: string }) =>
@@ -25,12 +34,20 @@ export const api = {
 
     signup: (userData: any) =>
       fetchJson('/auth/signup', { method: 'POST', body: JSON.stringify(userData) }),
+
+    getUsers: () => fetchJson('/auth/users'),
   },
 
   // Products API
   products: {
     getAll: (params: Record<string, string> = {}) => {
-      const query = new URLSearchParams(params).toString();
+      const cleanParams: Record<string, string> = {};
+      Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== '') {
+          cleanParams[k] = String(v);
+        }
+      });
+      const query = new URLSearchParams(cleanParams).toString();
       return fetchJson(`/products${query ? `?${query}` : ''}`);
     },
 
@@ -73,3 +90,4 @@ export const api = {
     getSellerWarnings: () => fetchJson('/reports/warnings/seller'),
   },
 };
+

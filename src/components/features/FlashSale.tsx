@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Zap, ChevronLeft, ChevronRight } from 'lucide-react';
 import { PRODUCTS, FLASH_SALE_IDS } from '@/constants/data';
 import ProductCard from './ProductCard';
+import { api } from '@/services/api';
 
 function useCountdown(targetHour: number) {
   const getTime = () => {
@@ -22,7 +23,19 @@ function useCountdown(targetHour: number) {
 }
 
 export default function FlashSale() {
-  const products = PRODUCTS.filter(p => FLASH_SALE_IDS.includes(p.id));
+  const [apiProducts, setApiProducts] = useState<any[]>(PRODUCTS);
+
+  useEffect(() => {
+    api.products.getAll().then(res => {
+      if (res && res.success && Array.isArray(res.products) && res.products.length > 0) {
+        setApiProducts(res.products);
+      }
+    });
+  }, []);
+
+  const filteredFromApi = apiProducts.filter(p => FLASH_SALE_IDS.includes(p.id));
+  const products = filteredFromApi.length > 0 ? filteredFromApi : apiProducts.slice(0, 6);
+
   const { h, m, s } = useCountdown(12);
   const scrollRef = useRef<HTMLDivElement>(null);
   const pad = (n: number) => String(n).padStart(2, '0');
@@ -64,3 +77,4 @@ export default function FlashSale() {
     </section>
   );
 }
+

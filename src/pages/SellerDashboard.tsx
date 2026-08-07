@@ -386,6 +386,30 @@ export default function SellerDashboard() {
       }
     });
 
+    api.products.getAll().then(res => {
+      if (res && res.success && Array.isArray(res.products) && res.products.length > 0) {
+        setSellerProducts(prev => {
+          const merged = [...res.products];
+          prev.forEach(p => {
+            if (!merged.some(m => m.id === p.id)) merged.push(p);
+          });
+          return merged;
+        });
+      }
+    });
+
+    api.orders.getAll().then(res => {
+      if (res && res.success && Array.isArray(res.orders) && res.orders.length > 0) {
+        setSellerOrders(prev => {
+          const merged = [...res.orders];
+          prev.forEach(o => {
+            if (!merged.some(m => m.id === o.id)) merged.push(o);
+          });
+          return merged;
+        });
+      }
+    });
+
     window.addEventListener('storage', handleStorage);
     return () => window.removeEventListener('storage', handleStorage);
   }, []);
@@ -558,6 +582,7 @@ export default function SellerDashboard() {
     };
 
     setSellerProducts(prev => [createdProd, ...prev]);
+    api.products.create(createdProd);
     toast.success(`New product "${newProduct.name}" listed successfully!`);
     setShowAddProductModal(false);
     setDeviceImageFiles([]);
@@ -580,6 +605,7 @@ export default function SellerDashboard() {
   };
 
   const handleUpdateOrderStatus = (orderId: string, newStatus: string) => {
+    api.orders.updateStatus(orderId, newStatus);
     setSellerOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
     toast.success(`Order #${orderId} status changed to "${newStatus.toUpperCase()}"!`);
   };
