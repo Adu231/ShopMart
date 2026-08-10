@@ -486,8 +486,8 @@ export default function SellerDashboard() {
     if (res && res.success && res.product) {
       setSellerProducts(prev => [res.product, ...prev]);
       toast.success(`New product "${res.product.name}" published with Cloudinary image(s)!`);
-    } else if (res && res.error) {
-      toast.error(`Upload error: ${res.error}`);
+    } else if (res && (res.error || (res.success === false && res.message))) {
+      toast.error(`Upload error: ${res.error || res.message}`);
       return;
     } else {
       const createdProd = {
