@@ -199,9 +199,13 @@ export default function SellerDashboard() {
   const [returnFilter, setReturnFilter] = useState<'all' | 'pending' | 'approved' | 'return' | 'replace'>('all');
   const [previewDefectImage, setPreviewDefectImage] = useState<string | null>(null);
 
-  // Multiple Image Files Upload State from Device
+  // Image Upload File & Cloudinary State
   const [deviceImageFiles, setDeviceImageFiles] = useState<string[]>([]);
+  const [uploadImageFile, setUploadImageFile] = useState<File | null>(null);
   const [showAddProductModal, setShowAddProductModal] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<any | null>(null);
+  const [editUploadImageFile, setEditUploadImageFile] = useState<File | null>(null);
+  const [editImagePreview, setEditImagePreview] = useState<string>('');
   const [newProduct, setNewProduct] = useState({
     name: '',
     category: 'Living Room',
@@ -533,60 +537,109 @@ export default function SellerDashboard() {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    const fileList = Array.from(files);
-    const readPromises = fileList.map(file => {
-      return new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (event) => resolve(event.target?.result as string);
-        reader.readAsDataURL(file);
-      });
-    });
+    const file = files[0];
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image file size must be under 5MB.');
+      return;
+    }
 
-    Promise.all(readPromises).then(base64Images => {
-      setDeviceImageFiles(prev => [...prev, ...base64Images]);
-      toast.success(`${base64Images.length} image(s) loaded from device!`);
-    });
+    setUploadImageFile(file);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64 = event.target?.result as string;
+      setDeviceImageFiles([base64]);
+      toast.success(`Image "${file.name}" selected for Cloudinary upload!`);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleRemoveDeviceImage = (index: number) => {
     setDeviceImageFiles(prev => prev.filter((_, i) => i !== index));
+    setUploadImageFile(null);
   };
 
-  const handleAddProductSubmit = (e: React.FormEvent) => {
+  const handleAddProductSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newProduct.name.trim() || !newProduct.price) {
       toast.error('Please enter product name and price.');
       return;
     }
 
-    const combinedImages: string[] = [...deviceImageFiles];
-    if (newProduct.imageUrlInput.trim()) {
-      combinedImages.push(newProduct.imageUrlInput.trim());
-    }
-    if (combinedImages.length === 0) {
-      combinedImages.push('https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=500&q=80');
+    const formData = new FormData();
+    formData.append('name', newProduct.name.trim());
+    formData.append('category', newProduct.category);
+    formData.append('price', String(newProduct.price));
+    formData.append('stock', String(newProduct.stock || 15));
+    formData.append('description', newProduct.description || 'Premium solid wood furniture item.');
+    formData.append('seller', profileForm.storeName || 'Verified Seller');
+    formData.append('brand', profileForm.storeName || 'Woodcraft Hub');
+
+    if (uploadImageFile) {
+      formData.append('image', uploadImageFile);
+    } else if (newProduct.imageUrlInput.trim()) {
+      formData.append('image_url', newProduct.imageUrlInput.trim());
     }
 
-    const createdProd = {
-      id: `p_seller_${Date.now()}`,
-      name: newProduct.name,
-      category: newProduct.category,
-      price: Number(newProduct.price),
-      stock: Number(newProduct.stock) || 10,
-      images: combinedImages,
-      description: newProduct.description || 'Premium solid wood furniture item.',
-      rating: 5.0,
-      reviewsCount: 1,
-      seller: profileForm.storeName,
-      discount: 10,
-    };
+    const res = await api.products.create(formData);
+    if (res && res.success && res.product) {
+      setSellerProducts(prev => [res.product, ...prev]);
+      toast.success(`New product "${res.product.name}" published to Cloudinary & Railway MySQL!`);
+    } else if (res && res.error) {
+      toast.error(`Upload error: ${res.error}`);
+      return;
+    } else {
+      const createdProd = {
+        id: `p_seller_${Date.now()}`,
+        name: newProduct.name,
+        category: newProduct.category,
+        price: Number(newProduct.price),
+        stock: Number(newProduct.stock) || 10,
+        images: deviceImageFiles.length > 0 ? deviceImageFiles : [newProduct.imageUrlInput || 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=500&q=80'],
+        description: newProduct.description || 'Premium solid wood furniture item.',
+        rating: 5.0,
+        reviewsCount: 1,
+        seller: profileForm.storeName,
+        discount: 10,
+      };
+      setSellerProducts(prev => [createdProd, ...prev]);
+      toast.success(`New product "${newProduct.name}" listed successfully!`);
+    }
 
-    setSellerProducts(prev => [createdProd, ...prev]);
-    api.products.create(createdProd);
-    toast.success(`New product "${newProduct.name}" listed successfully!`);
     setShowAddProductModal(false);
+    setUploadImageFile(null);
     setDeviceImageFiles([]);
     setNewProduct({ name: '', category: 'Living Room', price: '', stock: '15', imageUrlInput: '', description: '' });
+  };
+
+  const handleEditProductSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingProduct) return;
+
+    const formData = new FormData();
+    formData.append('name', editingProduct.name);
+    formData.append('category', editingProduct.category);
+    formData.append('price', String(editingProduct.price));
+    formData.append('stock', String(editingProduct.stock));
+    formData.append('description', editingProduct.description || '');
+
+    if (editUploadImageFile) {
+      formData.append('image', editUploadImageFile);
+    } else if (editingProduct.imageUrlInput) {
+      formData.append('image_url', editingProduct.imageUrlInput);
+    }
+
+    const res = await api.products.update(editingProduct.id, formData);
+    if (res && res.success && res.product) {
+      setSellerProducts(prev => prev.map(p => p.id === editingProduct.id ? { ...p, ...res.product } : p));
+      toast.success(`Product "${res.product.name}" updated on Cloudinary & MySQL database!`);
+    } else {
+      setSellerProducts(prev => prev.map(p => p.id === editingProduct.id ? { ...p, ...editingProduct } : p));
+      toast.success(`Product updated successfully!`);
+    }
+
+    setEditingProduct(null);
+    setEditUploadImageFile(null);
+    setEditImagePreview('');
   };
 
   const handleUpdateStock = (productId: string, delta: number) => {
@@ -2231,21 +2284,167 @@ export default function SellerDashboard() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => {
+                    setEditingProduct({
+                      ...selectedProductModal,
+                      imageUrlInput: '',
+                    });
+                    setEditImagePreview(selectedProductModal.images?.[0] || selectedProductModal.image_url || '');
+                    setEditUploadImageFile(null);
+                    setSelectedProductModal(null);
+                  }}
+                  className="px-4 py-2.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 font-bold rounded-xl text-xs flex items-center gap-1.5 transition-colors cursor-pointer border border-amber-500/20"
+                >
+                  <Upload size={14} /> Edit Listing & Replace Image
+                </button>
+                <button
+                  onClick={() => {
                     navigate(`/products/${selectedProductModal.id}`);
                     setSelectedProductModal(null);
                   }}
                   className="px-4 py-2.5 bg-muted hover:bg-muted/80 text-foreground font-bold rounded-xl text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
                 >
-                  <ExternalLink size={14} className="text-[#2874F0]" /> Preview Storefront Page
+                  <ExternalLink size={14} className="text-[#2874F0]" /> Preview Page
                 </button>
                 <button
                   onClick={() => setSelectedProductModal(null)}
                   className="px-5 py-2.5 bg-[#2874F0] hover:bg-blue-600 text-white font-bold rounded-xl text-xs shadow-md transition-colors cursor-pointer"
                 >
-                  Close Details
+                  Close
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT PRODUCT MODAL (WITH CLOUDINARY IMAGE REPLACEMENT) */}
+      {editingProduct && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-card border border-border rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto text-xs">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <h3 className="font-extrabold text-base text-foreground flex items-center gap-2">
+                <Upload className="text-[#2874F0]" size={18} /> Edit Product Listing & Replace Image
+              </h3>
+              <button onClick={() => setEditingProduct(null)} className="text-muted-foreground hover:text-foreground">
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleEditProductSubmit} className="space-y-3.5">
+              <div>
+                <label className="block font-semibold text-foreground mb-1">Product Title</label>
+                <input
+                  type="text"
+                  required
+                  value={editingProduct.name}
+                  onChange={e => setEditingProduct({ ...editingProduct, name: e.target.value })}
+                  className="w-full bg-background border border-border rounded-xl p-2.5 text-foreground font-medium outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-foreground mb-1">Category</label>
+                  <select
+                    value={editingProduct.category}
+                    onChange={e => setEditingProduct({ ...editingProduct, category: e.target.value })}
+                    className="w-full bg-background border border-border rounded-xl p-2.5 text-foreground font-medium outline-none"
+                  >
+                    <option value="Living Room">Living Room</option>
+                    <option value="Bedroom">Bedroom</option>
+                    <option value="Dining">Dining</option>
+                    <option value="Study">Study</option>
+                    <option value="Storage">Storage</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-semibold text-foreground mb-1">Price (₹)</label>
+                  <input
+                    type="number"
+                    required
+                    value={editingProduct.price}
+                    onChange={e => setEditingProduct({ ...editingProduct, price: e.target.value })}
+                    className="w-full bg-background border border-border rounded-xl p-2.5 font-bold text-foreground outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-foreground mb-1">Inventory Stock Units</label>
+                <input
+                  type="number"
+                  required
+                  value={editingProduct.stock}
+                  onChange={e => setEditingProduct({ ...editingProduct, stock: e.target.value })}
+                  className="w-full bg-background border border-border rounded-xl p-2.5 font-medium text-foreground outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-foreground mb-1">Replace Image File (Cloudinary Upload)</label>
+                <label className="border-2 border-dashed border-border hover:border-[#2874F0] rounded-xl p-3 flex flex-col items-center justify-center cursor-pointer transition-colors bg-muted/20 hover:bg-muted/40 text-center group">
+                  <Upload size={20} className="text-muted-foreground group-hover:text-[#2874F0] mb-1 transition-colors" />
+                  <span className="font-bold text-xs text-foreground">Click to select new image file for Cloudinary replacement</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={e => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        if (file.size > 5 * 1024 * 1024) {
+                          toast.error('File size exceeds 5MB.');
+                          return;
+                        }
+                        setEditUploadImageFile(file);
+                        setEditImagePreview(URL.createObjectURL(file));
+                        toast.success(`Selected "${file.name}" for Cloudinary upload!`);
+                      }
+                    }}
+                    className="hidden"
+                  />
+                </label>
+
+                {editImagePreview && (
+                  <div className="mt-2 flex items-center gap-3 bg-muted/30 p-2 rounded-xl border border-border">
+                    <img src={editImagePreview} alt="" className="w-14 h-14 rounded-lg object-cover border border-border" />
+                    <div>
+                      <p className="font-bold text-foreground text-[11px]">
+                        {editUploadImageFile ? `New Selected Image: ${editUploadImageFile.name}` : 'Current Active Product Image'}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {editUploadImageFile ? 'Will be uploaded to Cloudinary folder shopmart/products upon saving.' : 'Keep existing image or select a new file to replace.'}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block font-semibold text-foreground mb-1">Description</label>
+                <textarea
+                  rows={3}
+                  value={editingProduct.description || ''}
+                  onChange={e => setEditingProduct({ ...editingProduct, description: e.target.value })}
+                  className="w-full bg-background border border-border rounded-xl p-2.5 text-foreground font-medium outline-none"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingProduct(null)}
+                  className="flex-1 bg-muted text-foreground font-semibold py-2.5 rounded-xl cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 bg-[#2874F0] hover:bg-blue-600 text-white font-bold py-2.5 rounded-xl transition-colors shadow-md cursor-pointer"
+                >
+                  Save & Update Cloudinary Image
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -3,8 +3,10 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://shopmart-backend-o
 async function fetchJson(endpoint: string, options: RequestInit = {}) {
   try {
     const token = localStorage.getItem('shopmart_token');
+    const isFormData = options.body instanceof FormData;
+
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(options.headers as Record<string, string> || {}),
     };
@@ -53,8 +55,17 @@ export const api = {
 
     getById: (id: string) => fetchJson(`/products/${id}`),
 
-    create: (productData: any) =>
-      fetchJson('/products', { method: 'POST', body: JSON.stringify(productData) }),
+    create: (productData: FormData | any) =>
+      fetchJson('/products', {
+        method: 'POST',
+        body: productData instanceof FormData ? productData : JSON.stringify(productData),
+      }),
+
+    update: (id: string, productData: FormData | any) =>
+      fetchJson(`/products/${id}`, {
+        method: 'PUT',
+        body: productData instanceof FormData ? productData : JSON.stringify(productData),
+      }),
 
     delete: (id: string, reason?: string) =>
       fetchJson(`/products/${id}`, { method: 'DELETE', body: JSON.stringify({ reason }) }),
@@ -90,4 +101,3 @@ export const api = {
     getSellerWarnings: () => fetchJson('/reports/warnings/seller'),
   },
 };
-

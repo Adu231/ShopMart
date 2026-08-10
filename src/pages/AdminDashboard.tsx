@@ -447,6 +447,7 @@ export default function AdminDashboard() {
     const prodName = targetProd?.name || pendingRemoval.name;
 
     setProductList(prev => prev.filter(p => p.id !== pendingRemoval.id));
+    api.products.delete(pendingRemoval.id, removalReasonInput.trim());
 
     if (pendingRemoval.reportId) {
       setReportList(prev => prev.map(r => r.id === pendingRemoval.reportId ? {
