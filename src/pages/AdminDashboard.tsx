@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { BarChart2, Users, Package, TrendingUp, DollarSign, Settings, LogOut, Home, Bell, CheckCircle, XCircle, AlertCircle, Shield, Search, Save, RefreshCw, Lock, Sliders, AlertTriangle, UserX, UserCheck, Trash2, Send, Eye, ShieldAlert, Flag, Wallet, ArrowDownRight, CheckCircle2, User, KeyRound, Building, ShieldCheck, X, Download, FileSpreadsheet, FileText, Tag, Copy, Percent, Plus, Ticket, Calendar, ArrowRight, Upload, Image as ImageIcon, Sparkles } from 'lucide-react';
+import { BarChart2, Users, Package, TrendingUp, DollarSign, Settings, LogOut, Home, Bell, CheckCircle, XCircle, AlertCircle, Shield, Search, Save, RefreshCw, Lock, Sliders, AlertTriangle, UserX, UserCheck, Trash2, Send, Eye, ShieldAlert, Flag, Wallet, ArrowDownRight, CheckCircle2, User, KeyRound, Building, ShieldCheck, X, Download, FileSpreadsheet, FileText, Tag, Copy, Percent, Plus, Ticket, Calendar, ArrowRight, Upload, Image as ImageIcon, Sparkles, Zap, Clock } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { PRODUCTS } from '@/constants/data';
 import { formatPrice } from '@/lib/utils';
@@ -210,6 +210,9 @@ export default function AdminDashboard() {
         announcementText: saved.announcementText || "🔥 GRAND WOODFEST SALE: FLAT 50% OFF + EXTRA ₹500 OFF WITH COUPON 'WOODFEST50' | FREE EXPRESS FREIGHT ON ALL ORDERS!",
         announcementEnabled: saved.announcementEnabled !== undefined ? saved.announcementEnabled : true,
         discountBadgeText: saved.discountBadgeText || "GRAND WOODFEST SALE 50% OFF",
+        flashDealTitle: saved.flashDealTitle || "Flash Sale",
+        flashDealEnabled: saved.flashDealEnabled !== undefined ? saved.flashDealEnabled : true,
+        flashDealEndTime: saved.flashDealEndTime || "",
         heroSlides: saved.heroSlides?.length > 0 ? saved.heroSlides : [
           {
             id: 'slide-1',
@@ -238,6 +241,9 @@ export default function AdminDashboard() {
         announcementText: "🔥 GRAND WOODFEST SALE: FLAT 50% OFF + EXTRA ₹500 OFF WITH COUPON 'WOODFEST50' | FREE EXPRESS FREIGHT ON ALL ORDERS!",
         announcementEnabled: true,
         discountBadgeText: "GRAND WOODFEST SALE 50% OFF",
+        flashDealTitle: "Flash Sale",
+        flashDealEnabled: true,
+        flashDealEndTime: "",
         heroSlides: [
           {
             id: 'slide-1',
@@ -253,6 +259,14 @@ export default function AdminDashboard() {
       };
     }
   });
+
+  const handleSetQuickFlashDuration = (hours: number) => {
+    const targetDate = new Date(Date.now() + hours * 60 * 60 * 1000);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const formatted = `${targetDate.getFullYear()}-${pad(targetDate.getMonth() + 1)}-${pad(targetDate.getDate())}T${pad(targetDate.getHours())}:${pad(targetDate.getMinutes())}`;
+    setLandingSettings(prev => ({ ...prev, flashDealEndTime: formatted }));
+    toast.info(`Flash Deal timer updated to +${hours} hour(s) from now!`);
+  };
 
   const [showAddSlideModal, setShowAddSlideModal] = useState(false);
   const [newSlide, setNewSlide] = useState({
@@ -1123,7 +1137,106 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                {/* 2. Hero Slider Slides List */}
+                {/* 2. Flash Deal Title & Countdown Timer Settings */}
+                <div className="bg-card p-6 rounded-2xl border border-border shadow-sm space-y-4 text-xs">
+                  <div className="flex items-center justify-between border-b border-border pb-3">
+                    <h3 className="font-extrabold text-sm text-foreground flex items-center gap-2">
+                      <Zap className="text-orange-500 fill-orange-500" size={18} /> Flash Deal Title & Countdown Timer Management
+                    </h3>
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <span className="font-bold text-muted-foreground">Status:</span>
+                      <input
+                        type="checkbox"
+                        checked={landingSettings.flashDealEnabled}
+                        onChange={e => setLandingSettings({ ...landingSettings, flashDealEnabled: e.target.checked })}
+                        className="w-4 h-4 rounded text-[#2874F0] cursor-pointer"
+                      />
+                      <span className={`font-bold ${landingSettings.flashDealEnabled ? 'text-emerald-600' : 'text-rose-600'}`}>
+                        {landingSettings.flashDealEnabled ? 'Active' : 'Disabled'}
+                      </span>
+                    </label>
+                  </div>
+
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block font-semibold text-foreground mb-1">Flash Deal Section Title</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Flash Sale, Midnight Super Sale, Festival Deals"
+                        value={landingSettings.flashDealTitle}
+                        onChange={e => setLandingSettings({ ...landingSettings, flashDealTitle: e.target.value })}
+                        className="w-full bg-background border border-border rounded-xl p-3 font-semibold text-foreground outline-none"
+                      />
+                      <p className="text-[10px] text-muted-foreground mt-1">Section header title displayed on the storefront landing page.</p>
+                    </div>
+
+                    <div>
+                      <label className="block font-semibold text-foreground mb-1">Flash Deal Expiry Target Date & Time</label>
+                      <input
+                        type="datetime-local"
+                        value={landingSettings.flashDealEndTime}
+                        onChange={e => setLandingSettings({ ...landingSettings, flashDealEndTime: e.target.value })}
+                        className="w-full bg-background border border-border rounded-xl p-2.5 font-semibold text-foreground outline-none cursor-pointer"
+                      />
+                      <p className="text-[10px] text-muted-foreground mt-1">Exact expiration date & time for live countdown timer. Leave empty for standard 12h rolling timer.</p>
+                    </div>
+                  </div>
+
+                  {/* Quick Timer Preset Extensions */}
+                  <div>
+                    <span className="block font-semibold text-foreground mb-1.5">Quick Timer Extension Presets:</span>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {[
+                        { label: '+2 Hours', hours: 2 },
+                        { label: '+6 Hours', hours: 6 },
+                        { label: '+12 Hours', hours: 12 },
+                        { label: '+24 Hours (1 Day)', hours: 24 },
+                        { label: '+48 Hours (2 Days)', hours: 48 },
+                        { label: '+72 Hours (3 Days)', hours: 72 },
+                      ].map(preset => (
+                        <button
+                          key={preset.hours}
+                          type="button"
+                          onClick={() => handleSetQuickFlashDuration(preset.hours)}
+                          className="bg-orange-500/10 hover:bg-orange-500/20 text-orange-600 dark:text-orange-400 font-bold px-3 py-1.5 rounded-lg text-[11px] border border-orange-500/20 cursor-pointer transition-colors"
+                        >
+                          {preset.label}
+                        </button>
+                      ))}
+                      {landingSettings.flashDealEndTime && (
+                        <button
+                          type="button"
+                          onClick={() => setLandingSettings(prev => ({ ...prev, flashDealEndTime: '' }))}
+                          className="bg-muted hover:bg-muted/80 text-muted-foreground font-bold px-3 py-1.5 rounded-lg text-[11px] border border-border cursor-pointer"
+                        >
+                          Clear Custom Expiry
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Live Status Preview */}
+                  <div className="bg-gradient-to-r from-orange-500/10 via-amber-500/10 to-transparent p-3.5 rounded-xl border border-orange-500/20 flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <Clock className="text-orange-500 shrink-0" size={16} />
+                      <div>
+                        <span className="font-bold text-foreground">Live Timer Status: </span>
+                        <span className="font-semibold text-muted-foreground text-[11px]">
+                          {landingSettings.flashDealEndTime ? `Targeting ${landingSettings.flashDealEndTime.replace('T', ' ')}` : '12-Hour Rolling Auto Timer'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 bg-gradient-to-r from-[#FB641B] to-orange-500 px-3 py-1.5 rounded-lg text-white font-bold">
+                      <span>{landingSettings.flashDealTitle || 'Flash Sale'}</span>
+                      <span className="text-[10px] bg-black/30 px-2 py-0.5 rounded font-mono">
+                        {landingSettings.flashDealEnabled ? 'STOREFRONT ACTIVE' : 'DISABLED'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. Hero Slider Slides List */}
                 <div className="bg-card p-6 rounded-2xl border border-border shadow-sm space-y-4 text-xs">
                   <div className="flex items-center justify-between border-b border-border pb-3">
                     <h3 className="font-extrabold text-sm text-foreground flex items-center gap-2">
