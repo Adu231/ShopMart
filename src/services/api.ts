@@ -16,10 +16,22 @@ async function fetchJson(endpoint: string, options: RequestInit = {}) {
       ...options,
       headers,
     });
-    const data = await res.json();
+
+    let data: any = null;
+    try {
+      data = await res.json();
+    } catch (parseError) {
+      data = null;
+    }
+
+    if (!res.ok) {
+      console.error(`API call to ${endpoint} failed with status ${res.status}:`, data);
+      return data || { success: false, message: `HTTP ${res.status}: ${res.statusText}` };
+    }
+
     return data;
   } catch (error) {
-    console.warn(`API call to ${endpoint} failed, using local state fallback:`, error);
+    console.warn(`API call to ${endpoint} network failure:`, error);
     return null;
   }
 }
