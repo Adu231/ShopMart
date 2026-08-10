@@ -1,4 +1,5 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://shopmart-backend-og5a.onrender.com/api';
+const rawApiUrl = (import.meta.env.VITE_API_URL || 'https://shopmart-backend-og5a.onrender.com').replace(/\/+$/, '');
+const API_BASE_URL = rawApiUrl.endsWith('/api') ? rawApiUrl : `${rawApiUrl}/api`;
 
 async function fetchJson(endpoint: string, options: RequestInit = {}) {
   try {
