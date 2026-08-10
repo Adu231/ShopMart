@@ -63,7 +63,13 @@ export default function ProductCard({ product }: Props) {
       <Link to={`/products/${product.id}`} className="block h-full">
         <div className="bg-card border border-border rounded hover:shadow-lg transition-all duration-300 group flex flex-col h-full overflow-hidden">
           <div className="relative bg-gray-50 dark:bg-gray-800 overflow-hidden">
-            <img src={product.images[0]} alt={product.name} className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+            {product.images?.[0] || product.image_url ? (
+              <img src={product.images?.[0] || product.image_url} alt={product.name} className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
+            ) : (
+              <div className="w-full h-48 flex items-center justify-center text-muted-foreground bg-muted">
+                <span className="text-xs font-medium">No Image</span>
+              </div>
+            )}
             {product.discount >= 30 && (
               <span className="absolute top-2 left-2 bg-[#FB641B] text-white text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5">
                 <Zap size={9} />{product.discount}% OFF

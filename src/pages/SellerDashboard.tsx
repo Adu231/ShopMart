@@ -80,13 +80,13 @@ export default function SellerDashboard() {
   const [returnFilter, setReturnFilter] = useState<'all' | 'pending' | 'approved' | 'return' | 'replace'>('all');
   const [previewDefectImage, setPreviewDefectImage] = useState<string | null>(null);
 
-  // Image Upload File & Cloudinary State
+  // Image Upload File & Cloudinary State (Multiple Files Support)
   const [deviceImageFiles, setDeviceImageFiles] = useState<string[]>([]);
-  const [uploadImageFile, setUploadImageFile] = useState<File | null>(null);
+  const [uploadImageFiles, setUploadImageFiles] = useState<File[]>([]);
   const [showAddProductModal, setShowAddProductModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<any | null>(null);
-  const [editUploadImageFile, setEditUploadImageFile] = useState<File | null>(null);
-  const [editImagePreview, setEditImagePreview] = useState<string>('');
+  const [editUploadImageFiles, setEditUploadImageFiles] = useState<File[]>([]);
+  const [editImagePreviews, setEditImagePreviews] = useState<string[]>([]);
   const [newProduct, setNewProduct] = useState({
     name: '',
     category: 'Living Room',
@@ -420,25 +420,42 @@ export default function SellerDashboard() {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    const file = files[0];
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Image file size must be under 5MB.');
+    const fileList = Array.from(files);
+
+    if (fileList.length > 5) {
+      toast.error('You can upload a maximum of 5 product images.');
       return;
     }
 
-    setUploadImageFile(file);
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const base64 = event.target?.result as string;
-      setDeviceImageFiles([base64]);
-      toast.success(`Image "${file.name}" selected for Cloudinary upload!`);
-    };
-    reader.readAsDataURL(file);
+    const invalidSize = fileList.some(f => f.size > 10 * 1024 * 1024);
+    if (invalidSize) {
+      toast.error('Each image file size must be under 10MB.');
+      return;
+    }
+
+    setUploadImageFiles(fileList);
+
+    const previews: string[] = [];
+    let loaded = 0;
+
+    fileList.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const base64 = event.target?.result as string;
+        previews.push(base64);
+        loaded++;
+        if (loaded === fileList.length) {
+          setDeviceImageFiles(previews);
+          toast.success(`${fileList.length} image(s) selected for Cloudinary upload!`);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
   };
 
   const handleRemoveDeviceImage = (index: number) => {
     setDeviceImageFiles(prev => prev.filter((_, i) => i !== index));
-    setUploadImageFile(null);
+    setUploadImageFiles(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleAddProductSubmit = async (e: React.FormEvent) => {
@@ -453,12 +470,14 @@ export default function SellerDashboard() {
     formData.append('category', newProduct.category);
     formData.append('price', String(newProduct.price));
     formData.append('stock', String(newProduct.stock || 15));
-    formData.append('description', newProduct.description || 'Premium solid wood furniture item.');
+    formData.append('description', newProduct.description || '');
     formData.append('seller', profileForm.storeName || 'Verified Seller');
-    formData.append('brand', profileForm.storeName || 'Woodcraft Hub');
+    formData.append('brand', profileForm.storeName || 'Verified Seller');
 
-    if (uploadImageFile) {
-      formData.append('image', uploadImageFile);
+    if (uploadImageFiles.length > 0) {
+      uploadImageFiles.forEach(file => {
+        formData.append('images', file);
+      });
     } else if (newProduct.imageUrlInput.trim()) {
       formData.append('image_url', newProduct.imageUrlInput.trim());
     }
@@ -466,7 +485,7 @@ export default function SellerDashboard() {
     const res = await api.products.create(formData);
     if (res && res.success && res.product) {
       setSellerProducts(prev => [res.product, ...prev]);
-      toast.success(`New product "${res.product.name}" published to Cloudinary & Railway MySQL!`);
+      toast.success(`New product "${res.product.name}" published with Cloudinary image(s)!`);
     } else if (res && res.error) {
       toast.error(`Upload error: ${res.error}`);
       return;
@@ -477,8 +496,8 @@ export default function SellerDashboard() {
         category: newProduct.category,
         price: Number(newProduct.price),
         stock: Number(newProduct.stock) || 10,
-        images: deviceImageFiles.length > 0 ? deviceImageFiles : [newProduct.imageUrlInput || 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=500&q=80'],
-        description: newProduct.description || 'Premium solid wood furniture item.',
+        images: deviceImageFiles.length > 0 ? deviceImageFiles : (newProduct.imageUrlInput ? [newProduct.imageUrlInput] : []),
+        description: newProduct.description || '',
         rating: 5.0,
         reviewsCount: 1,
         seller: profileForm.storeName,
@@ -489,7 +508,7 @@ export default function SellerDashboard() {
     }
 
     setShowAddProductModal(false);
-    setUploadImageFile(null);
+    setUploadImageFiles([]);
     setDeviceImageFiles([]);
     setNewProduct({ name: '', category: 'Living Room', price: '', stock: '15', imageUrlInput: '', description: '' });
   };
@@ -505,8 +524,10 @@ export default function SellerDashboard() {
     formData.append('stock', String(editingProduct.stock));
     formData.append('description', editingProduct.description || '');
 
-    if (editUploadImageFile) {
-      formData.append('image', editUploadImageFile);
+    if (editUploadImageFiles.length > 0) {
+      editUploadImageFiles.forEach(file => {
+        formData.append('images', file);
+      });
     } else if (editingProduct.imageUrlInput) {
       formData.append('image_url', editingProduct.imageUrlInput);
     }
@@ -521,8 +542,8 @@ export default function SellerDashboard() {
     }
 
     setEditingProduct(null);
-    setEditUploadImageFile(null);
-    setEditImagePreview('');
+    setEditUploadImageFiles([]);
+    setEditImagePreviews([]);
   };
 
   const handleUpdateStock = (productId: string, delta: number) => {
