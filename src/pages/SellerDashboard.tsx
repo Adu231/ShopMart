@@ -420,33 +420,34 @@ export default function SellerDashboard() {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    const fileList = Array.from(files);
+    const newFiles = Array.from(files);
+    const combinedFiles = [...uploadImageFiles, ...newFiles];
 
-    if (fileList.length > 5) {
+    if (combinedFiles.length > 5) {
       toast.error('You can upload a maximum of 5 product images.');
       return;
     }
 
-    const invalidSize = fileList.some(f => f.size > 10 * 1024 * 1024);
+    const invalidSize = newFiles.some(f => f.size > 10 * 1024 * 1024);
     if (invalidSize) {
       toast.error('Each image file size must be under 10MB.');
       return;
     }
 
-    setUploadImageFiles(fileList);
+    setUploadImageFiles(combinedFiles);
 
-    const previews: string[] = [];
+    const newPreviews: string[] = [];
     let loaded = 0;
 
-    fileList.forEach(file => {
+    newFiles.forEach(file => {
       const reader = new FileReader();
       reader.onload = (event) => {
         const base64 = event.target?.result as string;
-        previews.push(base64);
+        newPreviews.push(base64);
         loaded++;
-        if (loaded === fileList.length) {
-          setDeviceImageFiles(previews);
-          toast.success(`${fileList.length} image(s) selected for Cloudinary upload!`);
+        if (loaded === newFiles.length) {
+          setDeviceImageFiles(prev => [...prev, ...newPreviews]);
+          toast.success(`${combinedFiles.length} total image(s) selected!`);
         }
       };
       reader.readAsDataURL(file);
