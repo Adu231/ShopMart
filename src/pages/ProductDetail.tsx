@@ -90,45 +90,21 @@ export default function ProductDetail() {
     }
   }, [id]);
 
-  // Dynamic Product Resolution (Searches static PRODUCTS, localStorage, or constructs dynamic fallback)
+  // Dynamic Product Resolution (Resolves backend database product or custom items)
   const getProduct = () => {
     if (backendProduct) return backendProduct;
-    if (!id) return PRODUCTS[0];
-    const staticFound = PRODUCTS.find(p => p.id === id);
-    if (staticFound) return staticFound;
 
-    try {
-      const customProds = JSON.parse(localStorage.getItem('shopmart_custom_products') || '[]');
-      const customFound = customProds.find((p: any) => p.id === id);
-      if (customFound) return customFound;
-    } catch (e) {
-      console.error(e);
+    if (id) {
+      try {
+        const customProds = JSON.parse(localStorage.getItem('shopmart_custom_products') || '[]');
+        const customFound = customProds.find((p: any) => p.id === id);
+        if (customFound) return customFound;
+      } catch (e) {
+        console.error(e);
+      }
     }
 
-    // Dynamic Fallback Product for custom/seller items
-    return {
-      id: id,
-      name: 'Handcrafted Solid Teak Furniture Listing',
-      category: 'Living Room',
-      price: 24999,
-      originalPrice: 29999,
-      rating: 4.9,
-      reviewsCount: 24,
-      discount: 16,
-      images: [
-        'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=800&q=80',
-        'https://images.unsplash.com/photo-1617806118233-18e1de247200?auto=format&fit=crop&w=800&q=80',
-      ],
-      description: 'Exquisite handcrafted solid wood furniture piece crafted with kiln-dried teak timber and protective polish coating.',
-      seller: 'Samsung Electronics / WoodNest Official Store',
-      stock: 15,
-      specs: {
-        Material: 'Solid Teak Wood',
-        Finish: 'High Gloss Protective Polish',
-        Assembly: 'Pre-assembled / Free Assembly Included',
-        Warranty: '3 Years WoodNest Timber Warranty',
-      }
-    };
+    return null;
   };
 
   const product = getProduct();
@@ -143,7 +119,7 @@ export default function ProductDetail() {
   }
 
   const inWishlist = isInWishlist(product.id);
-  const related = PRODUCTS.filter(p => p.category === product.category && p.id !== product.id).slice(0, 4);
+  const related: any[] = [];
 
   const handleAddToCart = () => {
     if (user?.role === 'admin' || user?.role === 'seller') {

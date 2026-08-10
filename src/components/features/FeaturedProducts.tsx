@@ -12,12 +12,14 @@ const TABS = [
 
 export default function FeaturedProducts() {
   const [activeTab, setActiveTab] = useState('trending');
-  const [apiProducts, setApiProducts] = useState<any[]>(PRODUCTS);
+  const [apiProducts, setApiProducts] = useState<any[]>([]);
 
   useEffect(() => {
     api.products.getAll().then(res => {
-      if (res && res.success && Array.isArray(res.products) && res.products.length > 0) {
+      if (res && res.success && Array.isArray(res.products)) {
         setApiProducts(res.products);
+      } else {
+        setApiProducts([]);
       }
     });
   }, []);

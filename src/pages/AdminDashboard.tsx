@@ -125,7 +125,7 @@ export default function AdminDashboard() {
   const [activeSection, setActiveSection] = useState('overview');
 
   // Products State
-  const [productList, setProductList] = useState(PRODUCTS);
+  const [productList, setProductList] = useState<any[]>([]);
 
   // Mandatory Product Removal Reason Modal State
   const [pendingRemoval, setPendingRemoval] = useState<{ id: string; name: string; reportId?: string } | null>(null);
@@ -337,8 +337,10 @@ export default function AdminDashboard() {
     });
 
     api.products.getAll().then(res => {
-      if (res && res.success && Array.isArray(res.products) && res.products.length > 0) {
+      if (res && res.success && Array.isArray(res.products)) {
         setProductList(res.products);
+      } else {
+        setProductList([]);
       }
     });
 

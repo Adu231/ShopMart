@@ -49,7 +49,7 @@ function useCountdown(endTime?: string) {
 }
 
 export default function FlashSale() {
-  const [apiProducts, setApiProducts] = useState<any[]>(PRODUCTS);
+  const [apiProducts, setApiProducts] = useState<any[]>([]);
   const [flashSettings, setFlashSettings] = useState(() => {
     try {
       const saved = JSON.parse(localStorage.getItem('shopmart_landing_settings') || '{}');
@@ -80,8 +80,10 @@ export default function FlashSale() {
 
   useEffect(() => {
     api.products.getAll().then(res => {
-      if (res && res.success && Array.isArray(res.products) && res.products.length > 0) {
+      if (res && res.success && Array.isArray(res.products)) {
         setApiProducts(res.products);
+      } else {
+        setApiProducts([]);
       }
     });
   }, []);

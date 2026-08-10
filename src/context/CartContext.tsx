@@ -18,72 +18,6 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
-const DEFAULT_MOCK_ORDERS: Order[] = [
-  {
-    id: 'ORD-WOOD-9821',
-    createdAt: '2026-08-04T10:30:00Z',
-    status: 'delivered',
-    totalAmount: 44999,
-    items: [
-      {
-        product: PRODUCTS[0],
-        quantity: 1,
-      }
-    ],
-    shippingAddress: {
-      fullName: 'Priya Customer',
-      phone: '9876543210',
-      street: '102, WoodNest Heights, Indiranagar',
-      city: 'Bengaluru',
-      state: 'Karnataka',
-      pincode: '560038',
-    },
-    paymentMethod: 'UPI (Google Pay)',
-  },
-  {
-    id: 'ORD-WOOD-9819',
-    createdAt: '2026-08-02T14:15:00Z',
-    status: 'out_for_delivery',
-    totalAmount: 34999,
-    items: [
-      {
-        product: PRODUCTS[1],
-        quantity: 1,
-      }
-    ],
-    shippingAddress: {
-      fullName: 'Priya Customer',
-      phone: '9876543210',
-      street: '102, WoodNest Heights, Indiranagar',
-      city: 'Bengaluru',
-      state: 'Karnataka',
-      pincode: '560038',
-    },
-    paymentMethod: 'Credit Card (HDFC)',
-  },
-  {
-    id: 'ORD-WOOD-9810',
-    createdAt: '2026-07-28T09:45:00Z',
-    status: 'shipped',
-    totalAmount: 15400,
-    items: [
-      {
-        product: PRODUCTS[2],
-        quantity: 1,
-      }
-    ],
-    shippingAddress: {
-      fullName: 'Priya Customer',
-      phone: '9876543210',
-      street: '102, WoodNest Heights, Indiranagar',
-      city: 'Bengaluru',
-      state: 'Karnataka',
-      pincode: '560038',
-    },
-    paymentMethod: 'Net Banking',
-  }
-];
-
 export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [items, setItems] = useState<CartItem[]>(() => {
     try { return JSON.parse(localStorage.getItem('shopmart_cart') || '[]'); } catch { return []; }
@@ -93,11 +27,11 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       const stored = localStorage.getItem('shopmart_orders');
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       }
-      return DEFAULT_MOCK_ORDERS;
+      return [];
     } catch {
-      return DEFAULT_MOCK_ORDERS;
+      return [];
     }
   });
 

@@ -47,7 +47,7 @@ export default function Products() {
     }
   }, [selectedBrand]);
 
-  const [productList, setProductList] = useState<any[]>(PRODUCTS);
+  const [productList, setProductList] = useState<any[]>([]);
 
   useEffect(() => {
     const paramsToPass: Record<string, string> = {};
@@ -58,8 +58,10 @@ export default function Products() {
     if (maxPrice < 500000) paramsToPass.maxPrice = String(maxPrice);
 
     api.products.getAll(paramsToPass).then(res => {
-      if (res && res.success && Array.isArray(res.products) && res.products.length > 0) {
+      if (res && res.success && Array.isArray(res.products)) {
         setProductList(res.products);
+      } else {
+        setProductList([]);
       }
     });
   }, [q, selectedCategories, selectedBrands, minPrice, maxPrice]);

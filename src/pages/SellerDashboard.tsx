@@ -7,18 +7,9 @@ import { formatPrice } from '@/lib/utils';
 import { toast } from 'sonner';
 import { api } from '@/services/api';
 
-const SELLER_PRODUCTS_INITIAL = PRODUCTS.filter(p => p.seller.includes('Samsung') || p.id === 'p8' || p.id === 'p10' || p.id === 'p18').slice(0, 6);
-
-const INITIAL_SELLER_ORDERS = [
-  { id: 'ORD001', product: 'Samsung Galaxy S24 Ultra', customer: 'Priya S.', amount: 89999, status: 'shipped', date: '2026-08-01' },
-  { id: 'ORD002', product: 'Samsung 55" Crystal 4K TV', customer: 'Rahul V.', amount: 46990, status: 'delivered', date: '2026-07-28' },
-  { id: 'ORD003', product: 'Sony WH-1000XM5', customer: 'Anjali P.', amount: 24990, status: 'packed', date: '2026-08-03' },
-  { id: 'ORD004', product: 'Samsung Washing Machine', customer: 'Vikram S.', amount: 34990, status: 'placed', date: '2026-08-04' },
-];
-
-const DEFAULT_REMOVED_PRODUCTS = [
-  { id: 'p99', name: 'Vintage Sheesham Armchair', category: 'Chairs', price: 14999, seller: 'Samsung Electronics / WoodNest Seller', removedDate: '2026-08-02', reason: 'Failed quality assurance inspection - polish defect reported by multiple customers.' },
-];
+const SELLER_PRODUCTS_INITIAL: any[] = [];
+const INITIAL_SELLER_ORDERS: any[] = [];
+const DEFAULT_REMOVED_PRODUCTS: any[] = [];
 
 const INITIAL_ADMIN_WARNINGS = [
   {
@@ -385,32 +376,20 @@ export default function SellerDashboard() {
     });
 
     api.products.getUnlisted().then(res => {
-      if (res && res.success && Array.isArray(res.unlisted) && res.unlisted.length > 0) {
-        setRemovedItems(prev => [...res.unlisted, ...prev]);
+      if (res && res.success && Array.isArray(res.unlisted)) {
+        setRemovedItems(res.unlisted);
       }
     });
 
     api.products.getAll().then(res => {
-      if (res && res.success && Array.isArray(res.products) && res.products.length > 0) {
-        setSellerProducts(prev => {
-          const merged = [...res.products];
-          prev.forEach(p => {
-            if (!merged.some(m => m.id === p.id)) merged.push(p);
-          });
-          return merged;
-        });
+      if (res && res.success && Array.isArray(res.products)) {
+        setSellerProducts(res.products);
       }
     });
 
     api.orders.getAll().then(res => {
-      if (res && res.success && Array.isArray(res.orders) && res.orders.length > 0) {
-        setSellerOrders(prev => {
-          const merged = [...res.orders];
-          prev.forEach(o => {
-            if (!merged.some(m => m.id === o.id)) merged.push(o);
-          });
-          return merged;
-        });
+      if (res && res.success && Array.isArray(res.orders)) {
+        setSellerOrders(res.orders);
       }
     });
 
