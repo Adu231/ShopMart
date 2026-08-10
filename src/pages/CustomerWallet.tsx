@@ -18,67 +18,9 @@ interface Transaction {
   referenceId: string;
 }
 
-const DEFAULT_TRANSACTIONS: Transaction[] = [
-  {
-    id: 'TXN-98421',
-    type: 'credit',
-    title: 'Order Refund Credit (#ORD-WOOD-9821)',
-    category: 'refund',
-    amount: 4999,
-    date: '2026-08-04T11:20:00Z',
-    status: 'completed',
-    referenceId: 'REF-WOOD-9821',
-  },
-  {
-    id: 'TXN-98402',
-    type: 'credit',
-    title: 'Added Funds via UPI (GPay)',
-    category: 'add_funds',
-    amount: 2500,
-    date: '2026-08-01T16:45:00Z',
-    status: 'completed',
-    referenceId: 'UPI-9824109283',
-  },
-  {
-    id: 'TXN-98399',
-    type: 'debit',
-    title: 'Order Payment (#ORD-WOOD-9819)',
-    category: 'order_payment',
-    amount: 1499,
-    date: '2026-07-29T10:15:00Z',
-    status: 'completed',
-    referenceId: 'ORD-WOOD-9819',
-  },
-  {
-    id: 'TXN-98350',
-    type: 'debit',
-    title: 'Bank Withdrawal to HDFC Bank (**** 8410)',
-    category: 'withdrawal',
-    amount: 1500,
-    date: '2026-07-20T14:30:00Z',
-    status: 'completed',
-    referenceId: 'NEFT-89240192',
-  },
-];
+const DEFAULT_TRANSACTIONS: Transaction[] = [];
 
-const DEFAULT_BANK_ACCOUNTS: BankAccount[] = [
-  {
-    id: 'bank-1',
-    bankName: 'HDFC Bank',
-    accountHolder: 'Priya Customer',
-    accountNumber: '982401928410',
-    ifscCode: 'HDFC0000240',
-    isDefault: true,
-  },
-  {
-    id: 'bank-2',
-    bankName: 'ICICI Bank',
-    accountHolder: 'Priya Customer',
-    accountNumber: '481920481294',
-    ifscCode: 'ICIC0001048',
-    isDefault: false,
-  }
-];
+const DEFAULT_BANK_ACCOUNTS: BankAccount[] = [];
 
 export default function CustomerWallet() {
   const { user, isAuthenticated } = useAuth();
@@ -88,9 +30,10 @@ export default function CustomerWallet() {
   const [balance, setBalance] = useState<number>(() => {
     try {
       const stored = localStorage.getItem('shopmart_wallet_balance');
-      return stored ? parseFloat(stored) : 5400;
+      const parsed = stored ? parseFloat(stored) : 0;
+      return (parsed === 5400 || parsed === 1000 || parsed === 234500 || parsed === 854620 || parsed === 2500 || parsed === 4999) ? 0 : parsed;
     } catch {
-      return 5400;
+      return 0;
     }
   });
 
@@ -98,9 +41,25 @@ export default function CustomerWallet() {
   const [transactions, setTransactions] = useState<Transaction[]>(() => {
     try {
       const stored = localStorage.getItem('shopmart_wallet_txns');
-      return stored ? JSON.parse(stored) : DEFAULT_TRANSACTIONS;
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          return parsed.filter((t: any) =>
+            t.id &&
+            !t.id.startsWith('TXN-98') &&
+            !t.id.startsWith('TXN-') &&
+            !t.referenceId?.startsWith('PAY-1786') &&
+            !t.referenceId?.startsWith('NEFT-') &&
+            !t.referenceId?.startsWith('REF-') &&
+            !t.title?.includes('Axis Bank') &&
+            !t.title?.includes('ICICI Bank') &&
+            !t.title?.includes('Order Refund Credit')
+          );
+        }
+      }
+      return [];
     } catch {
-      return DEFAULT_TRANSACTIONS;
+      return [];
     }
   });
 
@@ -110,11 +69,11 @@ export default function CustomerWallet() {
       const stored = localStorage.getItem('shopmart_user_bank_accounts');
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed.filter((b: any) => !['bank-1', 'bank-2'].includes(b.id));
       }
-      return DEFAULT_BANK_ACCOUNTS;
+      return [];
     } catch {
-      return DEFAULT_BANK_ACCOUNTS;
+      return [];
     }
   });
 

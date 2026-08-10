@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { BarChart2, Package, ShoppingBag, TrendingUp, DollarSign, Star, Plus, LogOut, Home, AlertCircle, Settings, Wallet, CheckCircle2, ArrowDownRight, Layers, Boxes, Trash2, Edit, Save, RefreshCw, User, KeyRound, Building, Building2, ShieldCheck, ShieldAlert, AlertTriangle, ChevronRight, Download, FileSpreadsheet, Calendar, X, FileText, Upload, Image as ImageIcon, MessageSquare, ThumbsUp, RotateCcw, Check, Eye, Lock, ExternalLink, ArrowRight } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
@@ -11,108 +11,11 @@ const SELLER_PRODUCTS_INITIAL: any[] = [];
 const INITIAL_SELLER_ORDERS: any[] = [];
 const DEFAULT_REMOVED_PRODUCTS: any[] = [];
 
-const INITIAL_ADMIN_WARNINGS = [
-  {
-    id: 'WRN-801',
-    reportId: 'REP-102',
-    productName: 'Modern Velvet 3-Seater Sofa',
-    customerName: 'Kavita Singh',
-    reason: 'Upholstery color mismatch & velvet fabric stain reported',
-    priority: 'High',
-    date: '2026-08-04',
-    message: 'OFFICIAL ADMIN AUDIT WARNING: Customer reported severe fabric color mismatch and velvet upholstery stains on delivery. Please inspect your quality control process and update batch photos within 48 hours.',
-    status: 'Unread',
-  },
-  {
-    id: 'WRN-800',
-    reportId: 'REP-104',
-    productName: 'King Size Storage Teak Bed',
-    customerName: 'Rohan Sharma',
-    reason: 'Suspected fake wood veneer coating on side headboard',
-    priority: 'High',
-    date: '2026-08-02',
-    message: 'CRITICAL AUDIT NOTICE: Customer raised complaint regarding veneer coating authenticity. Provide timber grade certification to Super Admin compliance desk.',
-    status: 'Acknowledged',
-  },
-  {
-    id: 'WRN-799',
-    reportId: 'REP-103',
-    productName: 'Ergonomic Sheesham Study Table',
-    customerName: 'Amit Patel',
-    reason: 'Delayed assembly service (>5 days)',
-    priority: 'Low',
-    date: '2026-07-30',
-    message: 'SERVICE SLA NOTICE: Assembly service was delayed past guaranteed 48-hour window. Expedite technician scheduling for regional orders.',
-    status: 'Acknowledged',
-  },
-];
-
-const INITIAL_SELLER_WITHDRAWALS = [
-  { id: 'WDR-S101', date: '2026-08-05', amount: 120000, method: 'HDFC Bank (A/C ...4819)', status: 'Completed' },
-  { id: 'WDR-S100', date: '2026-07-25', amount: 200000, method: 'HDFC Bank (A/C ...4819)', status: 'Completed' },
-  { id: 'WDR-S099', date: '2026-07-10', amount: 300120, method: 'UPI (samsung@hdfcbank)', status: 'Completed' },
-];
-
-const INITIAL_CUSTOMER_REVIEWS = [
-  { id: 'rev-1', customer: 'Ananya Roy', rating: 5, date: '2026-08-04', product: 'Solid Teak 6-Seater Dining Set', comment: 'Exquisite timber finish! Woodcraft Hub delivered ahead of schedule and the assembly team was professional.', sellerReply: 'Thank you Ananya! We take great pride in our teak wood craftsmanship.' },
-  { id: 'rev-2', customer: 'Rahul Sharma', rating: 4, date: '2026-08-02', product: 'Samsung Galaxy S24 Ultra', comment: 'Great phone, camera quality is unbelievable. Delivery took 3 days instead of 2.', sellerReply: '' },
-  { id: 'rev-3', customer: 'Kavita Singh', rating: 5, date: '2026-07-29', product: 'Modern Velvet 3-Seater Sofa', comment: 'Super comfortable sofa and rich emerald color velvet fabric. Fits perfectly in our living room!', sellerReply: 'Glad you loved the velvet upholstery Kavita!' },
-  { id: 'rev-4', customer: 'Vikram Mehta', rating: 3, date: '2026-07-20', product: 'Ergonomic Sheesham Study Table', comment: 'Table wood quality is decent, but drawer slider was a bit stiff initially.', sellerReply: '' },
-];
-
-const INITIAL_RETURN_REQUESTS = [
-  {
-    id: 'RET-901',
-    orderId: 'ORD-WOOD-9821',
-    customerName: 'Priya Customer',
-    customerEmail: 'priya@gmail.com',
-    productName: 'Solid Teak 6-Seater Dining Set',
-    productId: 'p1',
-    type: 'return',
-    amount: 44999,
-    commissionAmount: 4499.9,
-    sellerNet: 40499.1,
-    reason: 'Damaged or scratched wood surface on arrival',
-    notes: 'Deep scratch mark on table corner during transit.',
-    status: 'pending',
-    requestDate: '2026-08-05',
-    refundDestination: 'WoodNest Instant Wallet Store Credit',
-    defectImages: ['https://images.unsplash.com/photo-1617806118233-18e1de247200?auto=format&fit=crop&w=600&q=80'],
-  },
-  {
-    id: 'REP-902',
-    orderId: 'ORD-WOOD-9819',
-    customerName: 'Rahul Sharma',
-    customerEmail: 'rahul@gmail.com',
-    productName: 'Modern Velvet 3-Seater Sofa',
-    productId: 'p2',
-    type: 'replace',
-    amount: 34999,
-    commissionAmount: 3499.9,
-    sellerNet: 31499.1,
-    reason: 'Product color or upholstery mismatch',
-    notes: 'Requested replacement in Navy Blue fabric.',
-    status: 'pending',
-    requestDate: '2026-08-04',
-    refundDestination: 'Original Payment Source (UPI/Card)',
-    defectImages: ['https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=600&q=80'],
-  }
-];
-
-const INITIAL_RETURNED_STOCK = [
-  {
-    id: 'ret-item-1',
-    productName: 'Solid Teak 6-Seater Dining Set',
-    productId: 'p1',
-    orderId: 'ORD-WOOD-9821',
-    customerName: 'Priya Customer',
-    returnDate: '2026-08-05',
-    condition: 'Minor Polish Scratch (Grade B)',
-    actionTaken: 'Ready for Refurbish / Audit',
-    image: 'https://images.unsplash.com/photo-1617806118233-18e1de247200?auto=format&fit=crop&w=600&q=80',
-    stockQty: 1,
-  }
-];
+const INITIAL_ADMIN_WARNINGS: any[] = [];
+const INITIAL_SELLER_WITHDRAWALS: any[] = [];
+const INITIAL_CUSTOMER_REVIEWS: any[] = [];
+const INITIAL_RETURN_REQUESTS: any[] = [];
+const INITIAL_RETURNED_STOCK: any[] = [];
 
 const STATUS_COLORS: Record<string, string> = {
   placed: 'bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400',
@@ -124,38 +27,25 @@ const STATUS_COLORS: Record<string, string> = {
 
 const SALES_PERIOD_DATA = {
   weekly: {
-    unitsSold: '315 Units',
-    revenue: 185400,
-    aov: 21200,
-    growth: '+8.4% vs last week',
-    products: [
-      { id: 'p1', name: 'Solid Teak 6-Seater Dining Set', category: 'Dining', price: 44999, units: 3, revenue: 134997, stock: 12 },
-      { id: 'p2', name: 'Modern Velvet 3-Seater Sofa', category: 'Living Room', price: 34999, units: 1, revenue: 34999, stock: 8 },
-      { id: 'p3', name: 'Ergonomic Sheesham Study Table', category: 'Study', price: 15400, units: 1, revenue: 15400, stock: 15 },
-    ]
+    unitsSold: '0 Units',
+    revenue: 0,
+    aov: 0,
+    growth: '0%',
+    products: []
   },
   monthly: {
-    unitsSold: '1,420 Units',
-    revenue: 854620,
-    aov: 24850,
-    growth: '+18.5% growth this month',
-    products: [
-      { id: 'p1', name: 'Solid Teak 6-Seater Dining Set', category: 'Dining', price: 44999, units: 12, revenue: 539988, stock: 12 },
-      { id: 'p2', name: 'Modern Velvet 3-Seater Sofa', category: 'Living Room', price: 34999, units: 6, revenue: 209994, stock: 8 },
-      { id: 'p3', name: 'Ergonomic Sheesham Study Table', category: 'Study', price: 15400, units: 7, revenue: 107800, stock: 15 },
-      { id: 'p4', name: 'Sheesham King Size Storage Bed', category: 'Bedroom', price: 38999, units: 4, revenue: 155996, stock: 6 },
-    ]
+    unitsSold: '0 Units',
+    revenue: 0,
+    aov: 0,
+    growth: '0%',
+    products: []
   },
   yearly: {
-    unitsSold: '16,850 Units',
-    revenue: 9840000,
-    aov: 28500,
-    growth: '+32.1% YoY growth',
-    products: [
-      { id: 'p1', name: 'Solid Teak 6-Seater Dining Set', category: 'Dining', price: 44999, units: 110, revenue: 4949890, stock: 12 },
-      { id: 'p2', name: 'Modern Velvet 3-Seater Sofa', category: 'Living Room', price: 34999, units: 85, revenue: 2974915, stock: 8 },
-      { id: 'p3', name: 'Ergonomic Sheesham Study Table', category: 'Study', price: 15400, units: 124, revenue: 1909600, stock: 15 },
-    ]
+    unitsSold: '0 Units',
+    revenue: 0,
+    aov: 0,
+    growth: '0%',
+    products: []
   }
 };
 
@@ -218,9 +108,9 @@ export default function SellerDashboard() {
   const [sellerReplies, setSellerReplies] = useState<Record<string, string>>({});
 
   // Revenue & Withdrawal State
-  const [availableBalance, setAvailableBalance] = useState(234500);
-  const [totalRevenue, setTotalRevenue] = useState(854620);
-  const [totalWithdrawn, setTotalWithdrawn] = useState(620120);
+  const [availableBalance, setAvailableBalance] = useState(0);
+  const [totalRevenue, setTotalRevenue] = useState(0);
+  const [totalWithdrawn, setTotalWithdrawn] = useState(0);
   const [withdrawals, setWithdrawals] = useState(INITIAL_SELLER_WITHDRAWALS);
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [payoutAccount, setPayoutAccount] = useState('HDFC Bank (A/C ...4819)');
@@ -326,15 +216,25 @@ export default function SellerDashboard() {
     }
   };
 
-  const barData = [
-    { month: 'Mar', value: 65000 },
-    { month: 'Apr', value: 82000 },
-    { month: 'May', value: 74000 },
-    { month: 'Jun', value: 91000 },
-    { month: 'Jul', value: 108000 },
-    { month: 'Aug', value: 95000 },
-  ];
-  const maxVal = Math.max(...barData.map(d => d.value));
+  const barData = useMemo(() => {
+    const months = ['Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'];
+    const monthlyTotals: Record<string, number> = { Mar: 0, Apr: 0, May: 0, Jun: 0, Jul: 0, Aug: 0 };
+
+    if (Array.isArray(sellerOrders)) {
+      sellerOrders.forEach((o: any) => {
+        if (o.createdAt) {
+          const date = new Date(o.createdAt);
+          const m = date.toLocaleString('default', { month: 'short' });
+          if (monthlyTotals[m] !== undefined) {
+            monthlyTotals[m] += Number(o.amount) || Number(o.totalAmount) || 0;
+          }
+        }
+      });
+    }
+
+    return months.map(m => ({ month: m, value: monthlyTotals[m] || 0 }));
+  }, [sellerOrders]);
+  const maxVal = Math.max(...barData.map(d => d.value), 1);
 
   useEffect(() => {
     if (!isAuthenticated) navigate('/login');
@@ -344,18 +244,18 @@ export default function SellerDashboard() {
   const [adminWarnings, setAdminWarnings] = useState<any[]>(() => {
     try {
       const stored = JSON.parse(localStorage.getItem('shopmart_admin_warnings') || '[]');
-      return stored.length ? stored : INITIAL_ADMIN_WARNINGS;
+      return Array.isArray(stored) ? stored.filter((w: any) => !['WRN-801', 'WRN-800', 'WRN-799', 'REP-101', 'REP-102'].includes(w.id) && !['WRN-801', 'WRN-800', 'WRN-799', 'REP-101', 'REP-102'].includes(w.reportId)) : [];
     } catch {
-      return INITIAL_ADMIN_WARNINGS;
+      return [];
     }
   });
 
   useEffect(() => {
     try {
       const stored = JSON.parse(localStorage.getItem('shopmart_removed_products') || '[]');
-      setRemovedItems([...stored, ...DEFAULT_REMOVED_PRODUCTS]);
+      setRemovedItems(Array.isArray(stored) ? stored.filter((p: any) => p.id !== 'p99') : []);
     } catch {
-      setRemovedItems(DEFAULT_REMOVED_PRODUCTS);
+      setRemovedItems([]);
     }
   }, []);
 
@@ -363,15 +263,19 @@ export default function SellerDashboard() {
     const handleStorage = () => {
       try {
         const storedWarnings = JSON.parse(localStorage.getItem('shopmart_admin_warnings') || '[]');
-        if (storedWarnings.length) setAdminWarnings(storedWarnings);
+        if (Array.isArray(storedWarnings)) {
+          setAdminWarnings(storedWarnings.filter((w: any) => !['WRN-801', 'WRN-800', 'WRN-799', 'REP-101', 'REP-102'].includes(w.id) && !['WRN-801', 'WRN-800', 'WRN-799', 'REP-101', 'REP-102'].includes(w.reportId)));
+        }
         const storedRemoved = JSON.parse(localStorage.getItem('shopmart_removed_products') || '[]');
-        setRemovedItems([...storedRemoved, ...DEFAULT_REMOVED_PRODUCTS]);
+        if (Array.isArray(storedRemoved)) {
+          setRemovedItems(storedRemoved.filter((p: any) => p.id !== 'p99'));
+        }
       } catch (e) {}
     };
 
     api.reports.getSellerWarnings().then(res => {
-      if (res && res.success && Array.isArray(res.warnings) && res.warnings.length > 0) {
-        setAdminWarnings(prev => [...res.warnings, ...prev]);
+      if (res && res.success && Array.isArray(res.warnings)) {
+        setAdminWarnings(res.warnings);
       }
     });
 

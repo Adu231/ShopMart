@@ -27,7 +27,9 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
       const stored = localStorage.getItem('shopmart_orders');
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) return parsed;
+        if (Array.isArray(parsed)) {
+          return parsed.filter((o: any) => o.id && !o.id.startsWith('ORD-WOOD-') && !o.id.startsWith('ORD00'));
+        }
       }
       return [];
     } catch {
@@ -38,50 +40,26 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   // Fetch live orders from Render backend
   useEffect(() => {
     api.orders.getAll().then(res => {
-      if (res && res.success && Array.isArray(res.orders) && res.orders.length > 0) {
+      if (res && res.success && Array.isArray(res.orders)) {
         const formattedOrders: Order[] = res.orders.map((o: any) => ({
           id: o.id,
           createdAt: o.createdAt || new Date().toISOString(),
           status: o.status || 'placed',
-          totalAmount: Number(o.amount) || Number(o.totalAmount) || 19999,
-          items: o.items || [
-            {
-              product: {
-                id: o.productId || 'p1',
-                name: o.productName || 'Handcrafted Furniture Item',
-                category: 'Living Room',
-                price: Number(o.amount) || 19999,
-                originalPrice: Number(o.amount) ? Number(o.amount) + 5000 : 24999,
-                discount: 20,
-                rating: 4.8,
-                reviewCount: 12,
-                images: ['https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=800&q=80'],
-                description: 'Premium Solid Teak Wood Furniture',
-                inStock: true,
-                stockCount: 10,
-                seller: 'Woodcraft Seller',
-                isNew: true,
-              },
-              quantity: 1,
-            }
-          ],
+          totalAmount: Number(o.amount) || Number(o.totalAmount) || 0,
+          items: o.items || [],
           shippingAddress: typeof o.address === 'object' ? o.address : {
-            fullName: o.customerName || 'Priya Customer',
-            phone: '9876543210',
-            street: o.address || '102, WoodNest Heights, Indiranagar',
-            city: 'Bengaluru',
-            state: 'Karnataka',
-            pincode: '560038',
+            fullName: o.customerName || 'Customer',
+            phone: o.phone || '',
+            street: typeof o.address === 'string' ? o.address : '',
+            city: o.city || '',
+            state: o.state || '',
+            pincode: o.pincode || '',
           },
-          paymentMethod: o.paymentMethod || 'UPI (Google Pay)',
+          paymentMethod: o.paymentMethod || 'Online Payment',
         }));
-        setOrders(prev => {
-          const merged = [...formattedOrders];
-          prev.forEach(p => {
-            if (!merged.some(m => m.id === p.id)) merged.push(p);
-          });
-          return merged;
-        });
+        setOrders(formattedOrders);
+      } else {
+        setOrders(prev => prev.filter(o => o.id && !o.id.startsWith('ORD-WOOD-') && !o.id.startsWith('ORD00')));
       }
     });
   }, []);

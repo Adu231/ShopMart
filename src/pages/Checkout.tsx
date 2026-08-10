@@ -45,7 +45,7 @@ export default function Checkout() {
   const [selectedBank, setSelectedBank] = useState('HDFC Bank');
 
   // Wallet Balance from LocalStorage
-  const walletBalance = parseFloat(localStorage.getItem('shopmart_wallet_balance') || '5400');
+  const walletBalance = parseFloat(localStorage.getItem('shopmart_wallet_balance') || '0');
 
   // Charges Calculation
   const delivery = subtotal >= 499 ? 0 : 40;

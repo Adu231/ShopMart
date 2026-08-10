@@ -15,24 +15,7 @@ export interface BankAccount {
   isDefault: boolean;
 }
 
-const DEFAULT_BANK_ACCOUNTS: BankAccount[] = [
-  {
-    id: 'bank-1',
-    bankName: 'HDFC Bank',
-    accountHolder: 'Priya Customer',
-    accountNumber: '982401928410',
-    ifscCode: 'HDFC0000240',
-    isDefault: true,
-  },
-  {
-    id: 'bank-2',
-    bankName: 'ICICI Bank',
-    accountHolder: 'Priya Customer',
-    accountNumber: '481920481294',
-    ifscCode: 'ICIC0001048',
-    isDefault: false,
-  }
-];
+const DEFAULT_BANK_ACCOUNTS: BankAccount[] = [];
 
 export default function AccountSettings() {
   const { user, isAuthenticated, logout, updateUser } = useAuth();
@@ -49,17 +32,17 @@ export default function AccountSettings() {
       const stored = localStorage.getItem('shopmart_user_bank_accounts');
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed.filter((b: any) => !['bank-1', 'bank-2'].includes(b.id));
       }
-      return DEFAULT_BANK_ACCOUNTS;
+      return [];
     } catch {
-      return DEFAULT_BANK_ACCOUNTS;
+      return [];
     }
   });
 
   const [showAddBankForm, setShowAddBankForm] = useState(false);
   const [newBankName, setNewBankName] = useState('HDFC Bank');
-  const [newHolderName, setNewHolderName] = useState(user?.name || 'Priya Customer');
+  const [newHolderName, setNewHolderName] = useState(user?.name || '');
   const [newAccNumber, setNewAccNumber] = useState('');
   const [newIfscCode, setNewIfscCode] = useState('');
 

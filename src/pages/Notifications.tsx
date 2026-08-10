@@ -4,64 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import CustomerLayout from '@/components/layout/CustomerLayout';
 
-const INITIAL_NOTIFS = [
-  {
-    id: 'n1',
-    type: 'order',
-    title: 'Order Shipped',
-    message: 'Your order has been shipped and will arrive in 2-3 business days. Track your order for live updates.',
-    time: '2 hours ago',
-    read: false,
-  },
-  {
-    id: 'n2',
-    type: 'offer',
-    title: '⚡ Flash Sale Alert!',
-    message: "Up to 50% off on Electronics today only! Don't miss these amazing deals. Limited time offer.",
-    time: '5 hours ago',
-    read: false,
-  },
-  {
-    id: 'n3',
-    type: 'order',
-    title: 'Order Delivered',
-    message: 'Your order has been delivered successfully. We hope you enjoy your purchase! Please rate your experience.',
-    time: '1 day ago',
-    read: true,
-  },
-  {
-    id: 'n4',
-    type: 'system',
-    title: 'Account Updated',
-    message: "Your profile information has been updated successfully. If this wasn't you, please contact support immediately.",
-    time: '2 days ago',
-    read: true,
-  },
-  {
-    id: 'n5',
-    type: 'offer',
-    title: 'Exclusive Member Offer',
-    message: 'As a valued ShopMart member, enjoy an extra 10% off your next purchase with code MEMBER10.',
-    time: '3 days ago',
-    read: true,
-  },
-  {
-    id: 'n6',
-    type: 'order',
-    title: 'Payment Confirmed',
-    message: 'Payment received for your recent order. Your items are being packed and will be shipped soon.',
-    time: '4 days ago',
-    read: true,
-  },
-  {
-    id: 'n7',
-    type: 'system',
-    title: 'Welcome to ShopMart! 🎉',
-    message: 'Enjoy free delivery on your first order. Explore thousands of products across all categories. Happy Shopping!',
-    time: '1 week ago',
-    read: true,
-  },
-];
+const INITIAL_NOTIFS: any[] = [];
 
 const TYPE_CONFIG = {
   order: { icon: Package, styles: 'text-[#2874F0] bg-blue-50 dark:bg-blue-950/30', label: 'Orders' },
@@ -72,7 +15,14 @@ const TYPE_CONFIG = {
 export default function Notifications() {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
-  const [notifs, setNotifs] = useState(INITIAL_NOTIFS);
+  const [notifs, setNotifs] = useState<any[]>(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('shopmart_user_notifications') || '[]');
+      return Array.isArray(stored) ? stored.filter((n: any) => !['n1', 'n2', 'n3', 'n4', 'n5', 'n6', 'n7'].includes(n.id)) : [];
+    } catch {
+      return [];
+    }
+  });
   const [activeType, setActiveType] = useState<string>('all');
 
   useEffect(() => {

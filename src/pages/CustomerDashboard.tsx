@@ -28,9 +28,10 @@ export default function CustomerDashboard() {
   const [walletBalance] = useState<number>(() => {
     try {
       const stored = localStorage.getItem('shopmart_wallet_balance');
-      return stored ? parseFloat(stored) : 5400;
+      const parsed = stored ? parseFloat(stored) : 0;
+      return (parsed === 5400 || parsed === 1000 || parsed === 234500 || parsed === 854620) ? 0 : parsed;
     } catch {
-      return 5400;
+      return 0;
     }
   });
 
@@ -41,26 +42,26 @@ export default function CustomerDashboard() {
   if (!isAuthenticated) return null;
 
   const totalSpent = orders.reduce((s, o) => s + o.totalAmount, 0);
-  const activeOrder = orders.find(o => o.status === 'out_for_delivery' || o.status === 'shipped') || orders[0];
+  const activeOrder = orders.find(o => o.status === 'out_for_delivery' || o.status === 'shipped');
   const recentOrders = orders.slice(0, 4);
 
   const stats = [
     { icon: ShoppingBag, label: 'Total Orders', value: `${orders.length} Orders`, color: 'text-[#2874F0]', bg: 'bg-blue-50 dark:bg-blue-950/30', link: '/orders' },
     { icon: Wallet, label: 'Wallet Balance', value: formatPrice(walletBalance), color: 'text-purple-600', bg: 'bg-purple-50 dark:bg-purple-950/30', link: '/wallet' },
-    { icon: Heart, label: 'Saved Wishlist', value: `${wishlistCount || 5} Saved Items`, color: 'text-rose-500', bg: 'bg-rose-50 dark:bg-rose-950/30', link: '/wishlist' },
+    { icon: Heart, label: 'Saved Wishlist', value: `${wishlistCount} Saved Items`, color: 'text-rose-500', bg: 'bg-rose-50 dark:bg-rose-950/30', link: '/wishlist' },
     { icon: Star, label: 'WoodNest Rewards', value: `${Math.floor(totalSpent / 100)} Points`, color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-950/30', link: '/settings' },
   ];
 
   const quickLinks = [
     { icon: Package, label: 'My Orders & Fulfillment', to: '/orders', desc: `${orders.length} active order history`, iconBg: 'bg-blue-50 dark:bg-blue-950/30', iconColor: 'text-[#2874F0]' },
     { icon: Wallet, label: 'WoodNest Store Wallet', to: '/wallet', desc: `Balance: ${formatPrice(walletBalance)} · Add/Withdraw`, iconBg: 'bg-purple-50 dark:bg-purple-950/30', iconColor: 'text-purple-600' },
-    { icon: Heart, label: 'Saved Wishlist', to: '/wishlist', desc: `${wishlistCount || 5} saved items`, iconBg: 'bg-rose-50 dark:bg-rose-950/30', iconColor: 'text-rose-500' },
-    { icon: MapPin, label: 'Saved Delivery Addresses', to: '/addresses', desc: 'Bengaluru, Karnataka (Primary)', iconBg: 'bg-emerald-50 dark:bg-emerald-950/30', iconColor: 'text-emerald-600' },
+    { icon: Heart, label: 'Saved Wishlist', to: '/wishlist', desc: `${wishlistCount} saved items`, iconBg: 'bg-rose-50 dark:bg-rose-950/30', iconColor: 'text-rose-500' },
+    { icon: MapPin, label: 'Saved Delivery Addresses', to: '/addresses', desc: 'Delivery Address Book', iconBg: 'bg-emerald-50 dark:bg-emerald-950/30', iconColor: 'text-emerald-600' },
     { icon: Settings, label: 'Account Profile Settings', to: '/settings', desc: 'Manage password & details', iconBg: 'bg-amber-50 dark:bg-amber-950/30', iconColor: 'text-amber-600' },
   ];
 
   return (
-    <CustomerLayout title={`Welcome back, ${user?.name?.split(' ')[0] || 'Priya'}!`}>
+    <CustomerLayout title={`Welcome back, ${user?.name?.split(' ')[0] || 'Customer'}!`}>
       {/* Stats Row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 mb-5">
         {stats.map(({ icon: Icon, label, value, color, bg, link }) => (

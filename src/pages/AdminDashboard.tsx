@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { BarChart2, Users, Package, TrendingUp, DollarSign, Settings, LogOut, Home, Bell, CheckCircle, XCircle, AlertCircle, Shield, Search, Save, RefreshCw, Lock, Sliders, AlertTriangle, UserX, UserCheck, Trash2, Send, Eye, ShieldAlert, Flag, Wallet, ArrowDownRight, CheckCircle2, User, KeyRound, Building, ShieldCheck, X, Download, FileSpreadsheet, FileText, Tag, Copy, Percent, Plus, Ticket, Calendar, ArrowRight, Upload, Image as ImageIcon, Sparkles, Zap, Clock } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
@@ -7,105 +7,12 @@ import { formatPrice } from '@/lib/utils';
 import { toast } from 'sonner';
 import { api } from '@/services/api';
 
-// Comprehensive Sellers Data
-const INITIAL_SELLERS = [
-  { id: 's1', name: 'TechZone India', email: 'techzone@seller.com', date: '2026-07-28', products: 12, status: 'Pending' },
-  { id: 's2', name: 'Fashion Hub', email: 'fashionhub@seller.com', date: '2026-08-01', products: 35, status: 'Pending' },
-  { id: 's3', name: 'Home Essentials', email: 'homeessentials@seller.com', date: '2026-08-03', products: 8, status: 'Pending' },
-  { id: 's4', name: 'Woodcraft Hub', email: 'woodcraft@seller.com', date: '2026-05-10', products: 42, status: 'Active' },
-  { id: 's5', name: 'Crafty Timber Co', email: 'craftytimber@seller.com', date: '2026-04-15', products: 28, status: 'Active' },
-  { id: 's6', name: 'Apex Furnishings', email: 'apex@seller.com', date: '2026-03-22', products: 5, status: 'Blocked' },
-];
-
-const RECENT_ACTIVITY = [
-  { type: 'report', msg: 'Customer reported product quality issue on #p1', time: '10 min ago', color: 'text-red-500' },
-  { type: 'seller', msg: 'Seller "TechZone India" awaiting approval', time: '15 min ago', color: 'text-orange-600' },
-  { type: 'withdrawal', msg: 'Withdrawal of ₹1,50,000 processed to HDFC Bank', time: '30 min ago', color: 'text-green-600' },
-  { type: 'user', msg: 'New customer account created: Siddharth R.', time: '45 min ago', color: 'text-purple-600' },
-  { type: 'revenue', msg: 'Daily revenue target achieved: ₹2.4L', time: '2 hr ago', color: 'text-green-600' },
-];
-
-const INITIAL_USERS = [
-  { id: 'u1', name: 'Priya Customer', email: 'customer@demo.com', role: 'customer', status: 'Active', joined: '2026-01-15' },
-  { id: 'u2', name: 'Rahul Seller', email: 'seller@demo.com', role: 'seller', status: 'Active', joined: '2026-02-10' },
-  { id: 'u3', name: 'Admin User', email: 'admin@demo.com', role: 'admin', status: 'Active', joined: '2026-01-01' },
-  { id: 'u4', name: 'Vikram Mehta', email: 'vikram@example.com', role: 'customer', status: 'Active', joined: '2026-04-20' },
-  { id: 'u5', name: 'Siddharth Rao', email: 'siddharth@example.com', role: 'customer', status: 'Suspended', joined: '2026-05-12' },
-  { id: 'u6', name: 'Crafty Timber Co', email: 'craftytimber@seller.com', role: 'seller', status: 'Active', joined: '2026-06-01' },
-];
-
-const INITIAL_REPORTS = [
-  { id: 'REP-101', customer: 'Ananya Roy', email: 'ananya@example.com', product: 'Solid Teak 6-Seater Dining Set', productId: 'p1', seller: 'Woodcraft Hub', reason: 'Cracked leg joint delivered', priority: 'High', date: '2026-08-05', status: 'Open', warningSent: false, productUnlisted: false },
-  { id: 'REP-102', customer: 'Kavita Singh', email: 'kavita@example.com', product: 'Modern Velvet 3-Seater Sofa', productId: 'p2', seller: 'Home Essentials', reason: 'Upholstery color mismatch & stain', priority: 'Medium', date: '2026-08-04', status: 'In Progress', warningSent: true, productUnlisted: false },
-  { id: 'REP-103', customer: 'Amit Patel', email: 'amit@example.com', product: 'Ergonomic Sheesham Study Table', productId: 'p3', seller: 'TechZone India', reason: 'Delayed assembly service (>5 days)', priority: 'Low', date: '2026-08-03', status: 'Resolved', warningSent: false, productUnlisted: false },
-  { id: 'REP-104', customer: 'Rohan Sharma', email: 'rohan@example.com', product: 'King Size Storage Teak Bed', productId: 'p4', seller: 'Crafty Timber Co', reason: 'Suspected fake wood veneer coating', priority: 'High', date: '2026-08-02', status: 'Open', warningSent: false, productUnlisted: false },
-  { id: 'REP-105', customer: 'Deepak V.', email: 'deepak@example.com', product: 'Solid Oak Center Table', productId: 'p5', seller: 'Apex Furnishings', reason: 'Scratched glass top on arrival', priority: 'Low', date: '2026-08-01', status: 'Open', warningSent: false, productUnlisted: false },
-];
-
-const INITIAL_WITHDRAWALS = [
-  { id: 'WDR-901', date: '2026-08-06', amount: 150000, method: 'HDFC Bank (A/C ...8812)', status: 'Completed' },
-  { id: 'WDR-900', date: '2026-07-28', amount: 250000, method: 'ICICI Bank (A/C ...4019)', status: 'Completed' },
-  { id: 'WDR-899', date: '2026-07-15', amount: 355000, method: 'UPI (admin@hdfcbank)', status: 'Completed' },
-];
-
-const INITIAL_COUPONS = [
-  {
-    id: 'coup-1',
-    code: 'WOODFEST50',
-    title: 'Grand WoodFest 50% Flat Savings',
-    discountType: 'percentage',
-    discountValue: 50,
-    minOrderValue: 4999,
-    maxDiscount: 2500,
-    expiryDate: '2026-12-31',
-    usageLimit: 500,
-    usedCount: 142,
-    category: 'All Categories',
-    status: 'Active',
-  },
-  {
-    id: 'coup-2',
-    code: 'WOODNIGHT20',
-    title: 'Night Owl 20% Instant Discount',
-    discountType: 'percentage',
-    discountValue: 20,
-    minOrderValue: 2999,
-    maxDiscount: 1500,
-    expiryDate: '2026-10-15',
-    usageLimit: 300,
-    usedCount: 89,
-    category: 'Living Room',
-    status: 'Active',
-  },
-  {
-    id: 'coup-3',
-    code: 'WELCOME100',
-    title: 'New Customer ₹100 Flat Voucher',
-    discountType: 'fixed',
-    discountValue: 100,
-    minOrderValue: 999,
-    maxDiscount: 100,
-    expiryDate: '2026-12-31',
-    usageLimit: 1000,
-    usedCount: 310,
-    category: 'All Categories',
-    status: 'Active',
-  },
-  {
-    id: 'coup-4',
-    code: 'TEAKSPECIAL',
-    title: 'Teak Dining Table 30% OFF Special',
-    discountType: 'percentage',
-    discountValue: 30,
-    minOrderValue: 9999,
-    maxDiscount: 3500,
-    expiryDate: '2026-07-31',
-    usageLimit: 100,
-    usedCount: 45,
-    category: 'Dining',
-    status: 'Expired',
-  },
-];
+const INITIAL_SELLERS: any[] = [];
+const RECENT_ACTIVITY: any[] = [];
+const INITIAL_USERS: any[] = [];
+const INITIAL_REPORTS: any[] = [];
+const INITIAL_WITHDRAWALS: any[] = [];
+const INITIAL_COUPONS: any[] = [];
 
 const downloadCSV = (filename: string, csvContent: string) => {
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -171,21 +78,21 @@ export default function AdminDashboard() {
   const [activeReportModal, setActiveReportModal] = useState<typeof INITIAL_REPORTS[0] | null>(null);
 
   // Revenue & Withdrawal State
-  const [totalEarned, setTotalEarned] = useState(1240000);
-  const [availableBalance, setAvailableBalance] = useState(485000);
-  const [totalWithdrawn, setTotalWithdrawn] = useState(755000);
+  const [totalEarned, setTotalEarned] = useState(0);
+  const [availableBalance, setAvailableBalance] = useState(0);
+  const [totalWithdrawn, setTotalWithdrawn] = useState(0);
   const [withdrawals, setWithdrawals] = useState(INITIAL_WITHDRAWALS);
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [payoutMethod, setPayoutMethod] = useState('HDFC Bank (A/C ...8812)');
   const [withdrawing, setWithdrawing] = useState(false);
 
   // COUPON MANAGEMENT STATE
-  const [couponsList, setCouponsList] = useState(() => {
+  const [couponsList, setCouponsList] = useState<any[]>(() => {
     try {
       const saved = JSON.parse(localStorage.getItem('shopmart_coupons') || '[]');
-      return saved.length > 0 ? saved : INITIAL_COUPONS;
+      return Array.isArray(saved) ? saved.filter((c: any) => !['WOODFEST50', 'WOODNIGHT20', 'WELCOME100', 'TEAKSPECIAL', 'coup-1', 'coup-2', 'coup-3', 'coup-4'].includes(c.code) && !['coup-1', 'coup-2', 'coup-3', 'coup-4'].includes(c.id)) : [];
     } catch {
-      return INITIAL_COUPONS;
+      return [];
     }
   });
   const [couponFilter, setCouponFilter] = useState<'All' | 'Active' | 'Expired'>('All');
@@ -202,60 +109,28 @@ export default function AdminDashboard() {
     category: 'All Categories',
   });
 
-  // LANDING PAGE & HERO BANNERS MANAGEMENT STATE (NEW FEATURE)
+  // LANDING PAGE & HERO BANNERS MANAGEMENT STATE
   const [landingSettings, setLandingSettings] = useState(() => {
     try {
       const saved = JSON.parse(localStorage.getItem('shopmart_landing_settings') || '{}');
       return {
-        announcementText: saved.announcementText || "🔥 GRAND WOODFEST SALE: FLAT 50% OFF + EXTRA ₹500 OFF WITH COUPON 'WOODFEST50' | FREE EXPRESS FREIGHT ON ALL ORDERS!",
+        announcementText: saved.announcementText || "Welcome to ShopMart — Premium Quality Handcrafted Furniture & Home Decor",
         announcementEnabled: saved.announcementEnabled !== undefined ? saved.announcementEnabled : true,
-        discountBadgeText: saved.discountBadgeText || "GRAND WOODFEST SALE 50% OFF",
+        discountBadgeText: saved.discountBadgeText || "EXCLUSIVE OFFERS",
         flashDealTitle: saved.flashDealTitle || "Flash Sale",
         flashDealEnabled: saved.flashDealEnabled !== undefined ? saved.flashDealEnabled : true,
         flashDealEndTime: saved.flashDealEndTime || "",
-        heroSlides: saved.heroSlides?.length > 0 ? saved.heroSlides : [
-          {
-            id: 'slide-1',
-            title: 'Crafting Timeless Comfort for Every Room',
-            subtitle: '100% Solid Teak Wood Furniture with Lifetime Warranty & Free Assembly.',
-            bgColor: 'from-amber-900 via-amber-800 to-[#172337]',
-            cta: 'Explore Teak Collections',
-            badgeText: 'GRAND FESTIVAL SALE',
-            image: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=1200&q=80',
-            link: '/products',
-          },
-          {
-            id: 'slide-2',
-            title: 'Modern Living Room Velvet Sofas',
-            subtitle: 'Plush velvet upholstery, high-density foam, & royal emerald finish.',
-            bgColor: 'from-emerald-900 via-teal-800 to-[#172337]',
-            cta: 'Shop Sofas & Recliners',
-            badgeText: 'FLAT 40% OFF',
-            image: 'https://images.unsplash.com/photo-1617806118233-18e1de247200?auto=format&fit=crop&w=1200&q=80',
-            link: '/products',
-          },
-        ],
+        heroSlides: Array.isArray(saved.heroSlides) ? saved.heroSlides.filter((s: any) => !['slide-1', 'slide-2'].includes(s.id)) : [],
       };
     } catch {
       return {
-        announcementText: "🔥 GRAND WOODFEST SALE: FLAT 50% OFF + EXTRA ₹500 OFF WITH COUPON 'WOODFEST50' | FREE EXPRESS FREIGHT ON ALL ORDERS!",
+        announcementText: "Welcome to ShopMart — Premium Quality Handcrafted Furniture & Home Decor",
         announcementEnabled: true,
-        discountBadgeText: "GRAND WOODFEST SALE 50% OFF",
+        discountBadgeText: "EXCLUSIVE OFFERS",
         flashDealTitle: "Flash Sale",
         flashDealEnabled: true,
         flashDealEndTime: "",
-        heroSlides: [
-          {
-            id: 'slide-1',
-            title: 'Crafting Timeless Comfort for Every Room',
-            subtitle: '100% Solid Teak Wood Furniture with Lifetime Warranty & Free Assembly.',
-            bgColor: 'from-amber-900 via-amber-800 to-[#172337]',
-            cta: 'Explore Teak Collections',
-            badgeText: 'GRAND FESTIVAL SALE',
-            image: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=1200&q=80',
-            link: '/products',
-          },
-        ],
+        heroSlides: [],
       };
     }
   });
@@ -301,15 +176,25 @@ export default function AdminDashboard() {
     };
   });
 
-  const adminBarData = [
-    { month: 'Mar', value: 140000 },
-    { month: 'Apr', value: 185000 },
-    { month: 'May', value: 210000 },
-    { month: 'Jun', value: 245000 },
-    { month: 'Jul', value: 280000 },
-    { month: 'Aug', value: 180000 },
-  ];
-  const maxAdminVal = Math.max(...adminBarData.map(d => d.value));
+  const adminBarData = useMemo(() => {
+    const months = ['Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'];
+    const monthlyTotals: Record<string, number> = { Mar: 0, Apr: 0, May: 0, Jun: 0, Jul: 0, Aug: 0 };
+
+    if (Array.isArray(productList)) {
+      productList.forEach((p: any) => {
+        if (p.createdAt) {
+          const date = new Date(p.createdAt);
+          const m = date.toLocaleString('default', { month: 'short' });
+          if (monthlyTotals[m] !== undefined) {
+            monthlyTotals[m] += Number(p.price) || 0;
+          }
+        }
+      });
+    }
+
+    return months.map(m => ({ month: m, value: monthlyTotals[m] || 0 }));
+  }, [productList]);
+  const maxAdminVal = Math.max(...adminBarData.map(d => d.value), 1);
 
   useEffect(() => {
     if (!isAuthenticated) navigate('/login');

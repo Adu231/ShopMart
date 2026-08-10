@@ -32,11 +32,10 @@ export default function WalletPaymentGateway() {
         else if (parsed.paymentMode === 'net_banking') setSelectedTab('netbanking');
         else setSelectedTab('upi');
       } else {
-        // Fallback default for testing
-        setTopupData({ amount: 1000, paymentMode: 'upi' });
+        navigate('/wallet');
       }
     } catch {
-      setTopupData({ amount: 1000, paymentMode: 'upi' });
+      navigate('/wallet');
     }
   }, []);
 

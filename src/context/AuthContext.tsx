@@ -30,10 +30,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const [addresses, setAddresses] = useState<Address[]>(() => {
     try {
-      return JSON.parse(localStorage.getItem('shopmart_addresses') || 'null') || [{
-        id: 'a1', name: 'Priya Customer', phone: '9876543210', street: '123, MG Road, Indiranagar',
-        city: 'Bengaluru', state: 'Karnataka', pincode: '560038', isDefault: true,
-      }];
+      const stored = JSON.parse(localStorage.getItem('shopmart_addresses') || '[]');
+      return Array.isArray(stored) ? stored.filter((a: Address) => a.id !== 'a1') : [];
     } catch { return []; }
   });
 
