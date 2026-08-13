@@ -96,6 +96,12 @@ export default function SellerDashboard() {
     description: '',
   });
 
+  // Deletion & Removal Modal state
+  const [productToDelete, setProductToDelete] = useState<any | null>(null);
+  const [removalReason, setRemovalReason] = useState<string>('');
+  const [isPermanentDelete, setIsPermanentDelete] = useState<boolean>(false);
+  const [isDeletingProduct, setIsDeletingProduct] = useState<boolean>(false);
+
   // Removed Items from localStorage
   const [removedItems, setRemovedItems] = useState<any[]>([]);
 
@@ -273,29 +279,37 @@ export default function SellerDashboard() {
       } catch (e) {}
     };
 
-    api.reports.getSellerWarnings().then(res => {
-      if (res && res.success && Array.isArray(res.warnings)) {
-        setAdminWarnings(res.warnings);
-      }
-    });
+    const token = localStorage.getItem('shopmart_token');
+    if (token) {
+      api.reports.getSellerWarnings().then(res => {
+        if (res && res.success && Array.isArray(res.warnings)) {
+          setAdminWarnings(res.warnings);
+        }
+      });
 
-    api.products.getUnlisted().then(res => {
-      if (res && res.success && Array.isArray(res.unlisted)) {
-        setRemovedItems(res.unlisted);
-      }
-    });
+      api.products.getUnlisted().then(res => {
+        if (res && res.success && Array.isArray(res.unlisted)) {
+          setRemovedItems(res.unlisted);
+        }
+      });
 
-    api.products.getAll().then(res => {
-      if (res && res.success && Array.isArray(res.products)) {
-        setSellerProducts(res.products);
-      }
-    });
+      api.products.getSellerProducts().then(res => {
+        if (res && res.success && Array.isArray(res.products)) {
+          setSellerProducts(res.products);
+        }
+      });
 
-    api.orders.getAll().then(res => {
-      if (res && res.success && Array.isArray(res.orders)) {
-        setSellerOrders(res.orders);
-      }
-    });
+      api.orders.getAll().then(res => {
+        if (res && res.success && Array.isArray(res.orders)) {
+          setSellerOrders(res.orders);
+        }
+      });
+    } else {
+      setSellerProducts([]);
+      setSellerOrders([]);
+      setAdminWarnings([]);
+      setRemovedItems([]);
+    }
 
     window.addEventListener('storage', handleStorage);
     return () => window.removeEventListener('storage', handleStorage);
@@ -545,6 +559,58 @@ export default function SellerDashboard() {
     setEditingProduct(null);
     setEditUploadImageFiles([]);
     setEditImagePreviews([]);
+  };
+
+  const handleConfirmDeleteProduct = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!productToDelete) return;
+    setIsDeletingProduct(true);
+
+    try {
+      const reason = removalReason.trim() || 'Unlisted by seller from catalog';
+      const res = await api.products.delete(productToDelete.id, reason, isPermanentDelete);
+
+      if (res && res.success === false) {
+        toast.error(res.message || 'Failed to remove product from backend.');
+      } else {
+        toast.success(`Product "${productToDelete.name}" ${isPermanentDelete ? 'permanently deleted' : 'unlisted & removed'} successfully!`);
+
+        setSellerProducts(prev => prev.filter(p => p.id !== productToDelete.id));
+
+        const removedItem = {
+          id: productToDelete.id,
+          name: productToDelete.name,
+          category: productToDelete.category || 'General',
+          price: productToDelete.price,
+          images: productToDelete.images || (productToDelete.image_url ? [productToDelete.image_url] : ['https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=500&q=80']),
+          seller: productToDelete.seller || profileForm?.storeName || 'Verified Seller',
+          removedDate: new Date().toISOString().split('T')[0],
+          reason: reason,
+          unlistedReason: reason,
+          isPermanent: isPermanentDelete,
+        };
+
+        setRemovedItems(prev => [removedItem, ...prev.filter((x: any) => x.id !== productToDelete.id)]);
+        try {
+          const existing = JSON.parse(localStorage.getItem('shopmart_removed_products') || '[]');
+          localStorage.setItem(
+            'shopmart_removed_products',
+            JSON.stringify([removedItem, ...existing.filter((x: any) => x.id !== productToDelete.id)])
+          );
+        } catch (e) {}
+
+        if (selectedProductModal && selectedProductModal.id === productToDelete.id) {
+          setSelectedProductModal(null);
+        }
+      }
+    } catch (err: any) {
+      toast.error(`Error removing product: ${err.message || 'Server error'}`);
+    } finally {
+      setIsDeletingProduct(false);
+      setProductToDelete(null);
+      setRemovalReason('');
+      setIsPermanentDelete(false);
+    }
   };
 
   const handleUpdateStock = (productId: string, delta: number) => {
@@ -1035,26 +1101,54 @@ export default function SellerDashboard() {
                     <div
                       key={p.id}
                       onClick={() => { setSelectedModalImageIdx(0); setSelectedProductModal(p); }}
-                      className="bg-card rounded-xl shadow-sm border border-border overflow-hidden hover:border-[#2874F0] hover:shadow-md transition-all cursor-pointer group"
+                      className="bg-card rounded-xl shadow-sm border border-border overflow-hidden hover:border-[#2874F0] hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between"
                       title="Click to view full product details"
                     >
                       <div className="relative h-40 overflow-hidden bg-muted">
-                        <img src={p.images[0]} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                        <span className="absolute top-2.5 right-2.5 bg-black/60 backdrop-blur-sm text-white text-[10px] px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
-                          <Eye size={12} /> View Details
-                        </span>
+                        <img src={p.images?.[0] || p.image_url || 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=500&q=80'} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                        <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setProductToDelete(p);
+                              setRemovalReason('');
+                              setIsPermanentDelete(false);
+                            }}
+                            className="bg-rose-600 hover:bg-rose-700 text-white p-1.5 rounded-full shadow-md transition-all cursor-pointer"
+                            title="Remove / Delete Product"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                          <span className="bg-black/60 backdrop-blur-sm text-white text-[10px] px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
+                            <Eye size={12} /> View Details
+                          </span>
+                        </div>
                       </div>
 
-                      <div className="p-4 space-y-2">
+                      <div className="p-4 space-y-2 flex-1 flex flex-col justify-between">
                         <div>
                           <p className="text-sm font-bold text-foreground line-clamp-1 group-hover:text-[#2874F0] transition-colors">{p.name}</p>
                           <p className="text-xs text-muted-foreground mt-0.5">{p.category}</p>
                         </div>
-                        <div className="flex items-center justify-between pt-2 border-t border-border">
+                        <div className="flex items-center justify-between pt-2 border-t border-border mt-auto">
                           <span className="text-base font-extrabold text-foreground">{formatPrice(p.price)}</span>
-                          <span className={`text-xs px-2.5 py-0.5 rounded-full font-bold ${p.stock > 0 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300' : 'bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300'}`}>
-                            {p.stock > 0 ? `${p.stock} in stock` : 'Out of stock'}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-xs px-2.5 py-0.5 rounded-full font-bold ${p.stock > 0 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300' : 'bg-rose-100 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300'}`}>
+                              {p.stock > 0 ? `${p.stock} in stock` : 'Out of stock'}
+                            </span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setProductToDelete(p);
+                                setRemovalReason('');
+                                setIsPermanentDelete(false);
+                              }}
+                              className="p-1.5 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg transition-colors cursor-pointer"
+                              title="Remove Product"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1073,6 +1167,7 @@ export default function SellerDashboard() {
                         <th className="px-4 py-3">Stock Status</th>
                         <th className="px-4 py-3 text-center">Current Quantity</th>
                         <th className="px-4 py-3 text-right">Quick Adjust</th>
+                        <th className="px-4 py-3 text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
@@ -1083,7 +1178,7 @@ export default function SellerDashboard() {
                             onClick={() => { setSelectedModalImageIdx(0); setSelectedProductModal(p); }}
                           >
                             <div className="flex items-center gap-3 group">
-                              <img src={p.images[0]} alt="" className="w-10 h-10 rounded-lg object-cover border border-border shrink-0" />
+                              <img src={p.images?.[0] || p.image_url || 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=500&q=80'} alt="" className="w-10 h-10 rounded-lg object-cover border border-border shrink-0" />
                               <span className="font-bold text-foreground max-w-[200px] truncate group-hover:text-[#2874F0] transition-colors">{p.name}</span>
                             </div>
                           </td>
@@ -1117,6 +1212,19 @@ export default function SellerDashboard() {
                                 +
                               </button>
                             </div>
+                          </td>
+                          <td className="px-4 py-3.5 text-right">
+                            <button
+                              onClick={() => {
+                                setProductToDelete(p);
+                                setRemovalReason('');
+                                setIsPermanentDelete(false);
+                              }}
+                              className="p-2 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded-lg transition-colors cursor-pointer"
+                              title="Remove Product"
+                            >
+                              <Trash2 size={16} />
+                            </button>
                           </td>
                         </tr>
                       ))}
@@ -2189,12 +2297,22 @@ export default function SellerDashboard() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => {
+                    setProductToDelete(selectedProductModal);
+                    setRemovalReason('');
+                    setIsPermanentDelete(false);
+                  }}
+                  className="px-4 py-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 font-bold rounded-xl text-xs flex items-center gap-1.5 transition-colors cursor-pointer border border-rose-500/20"
+                >
+                  <Trash2 size={14} /> Remove Product
+                </button>
+                <button
+                  onClick={() => {
                     setEditingProduct({
                       ...selectedProductModal,
                       imageUrlInput: '',
                     });
-                    setEditImagePreview(selectedProductModal.images?.[0] || selectedProductModal.image_url || '');
-                    setEditUploadImageFile(null);
+                    setEditImagePreviews(selectedProductModal.images || []);
+                    setEditUploadImageFiles([]);
                     setSelectedProductModal(null);
                   }}
                   className="px-4 py-2.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 font-bold rounded-xl text-xs flex items-center gap-1.5 transition-colors cursor-pointer border border-amber-500/20"
@@ -2487,6 +2605,116 @@ export default function SellerDashboard() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* PRODUCT REMOVAL CONFIRMATION MODAL */}
+      {productToDelete && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-card border border-border rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 text-xs">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <h3 className="font-extrabold text-base text-foreground flex items-center gap-2">
+                <Trash2 className="text-rose-600" size={20} /> Remove Product Listing
+              </h3>
+              <button
+                onClick={() => {
+                  setProductToDelete(null);
+                  setRemovalReason('');
+                  setIsPermanentDelete(false);
+                }}
+                className="text-muted-foreground hover:text-foreground cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="flex items-center gap-3 p-3 bg-muted/40 rounded-xl border border-border">
+              <img
+                src={productToDelete.images?.[0] || productToDelete.image_url || 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=500&q=80'}
+                alt=""
+                className="w-12 h-12 rounded-lg object-cover border border-border shrink-0"
+              />
+              <div className="min-w-0">
+                <p className="font-bold text-sm text-foreground truncate">{productToDelete.name}</p>
+                <p className="text-xs text-muted-foreground">{productToDelete.category} · {formatPrice(productToDelete.price)}</p>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block font-semibold text-foreground mb-1">Removal Mode</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsPermanentDelete(false)}
+                    className={`p-2.5 rounded-xl border font-bold text-left text-xs transition-all cursor-pointer ${
+                      !isPermanentDelete
+                        ? 'border-[#2874F0] bg-blue-50/50 dark:bg-blue-950/30 text-[#2874F0]'
+                        : 'border-border bg-background text-muted-foreground hover:bg-muted'
+                    }`}
+                  >
+                    <span className="block font-bold">Unlist Product</span>
+                    <span className="text-[10px] font-normal opacity-80">Hide from storefront & archive in removed tab</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsPermanentDelete(true)}
+                    className={`p-2.5 rounded-xl border font-bold text-left text-xs transition-all cursor-pointer ${
+                      isPermanentDelete
+                        ? 'border-rose-500 bg-rose-50/50 dark:bg-rose-950/30 text-rose-600'
+                        : 'border-border bg-background text-muted-foreground hover:bg-muted'
+                    }`}
+                  >
+                    <span className="block font-bold">Permanent Delete</span>
+                    <span className="text-[10px] font-normal opacity-80">Delete from DB & purge Cloudinary images</span>
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-foreground mb-1">Reason for Removal (Optional)</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Out of stock permanently, Discontinued item..."
+                  value={removalReason}
+                  onChange={e => setRemovalReason(e.target.value)}
+                  className="w-full bg-background border border-border rounded-xl p-2.5 text-foreground font-medium outline-none focus:border-rose-500 transition-colors"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-border">
+              <button
+                type="button"
+                disabled={isDeletingProduct}
+                onClick={() => {
+                  setProductToDelete(null);
+                  setRemovalReason('');
+                  setIsPermanentDelete(false);
+                }}
+                className="px-4 py-2.5 bg-muted hover:bg-muted/80 text-foreground font-bold rounded-xl text-xs transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingProduct}
+                onClick={() => handleConfirmDeleteProduct()}
+                className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs shadow-md transition-colors cursor-pointer flex items-center gap-2 disabled:opacity-50"
+              >
+                {isDeletingProduct ? (
+                  <>
+                    <RefreshCw size={14} className="animate-spin" /> Removing...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 size={14} /> Confirm Removal
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

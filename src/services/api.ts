@@ -80,10 +80,14 @@ export const api = {
         body: productData instanceof FormData ? productData : JSON.stringify(productData),
       }),
 
-    delete: (id: string, reason?: string) =>
-      fetchJson(`/products/${id}`, { method: 'DELETE', body: JSON.stringify({ reason }) }),
+    delete: (id: string, reason?: string, permanent?: boolean) =>
+      fetchJson(`/products/${id}${permanent ? '?permanent=true' : ''}`, {
+        method: 'DELETE',
+        body: JSON.stringify({ reason, permanent }),
+      }),
 
     getUnlisted: () => fetchJson('/products/unlisted/all'),
+    getSellerProducts: () => fetchJson('/products/seller/mine'),
   },
 
   // Orders API

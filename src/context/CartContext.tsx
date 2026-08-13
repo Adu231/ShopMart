@@ -1,6 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import type { CartItem, Product, Order } from '@/types';
-import { PRODUCTS } from '@/constants/data';
 import { api } from '@/services/api';
 
 interface CartContextType {
@@ -37,35 +36,46 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     }
   });
 
-  // Fetch live orders from Render backend
+  // Fetch live user-scoped orders from backend
   useEffect(() => {
-    api.orders.getAll().then(res => {
-      if (res && res.success && Array.isArray(res.orders)) {
-        const formattedOrders: Order[] = res.orders.map((o: any) => ({
-          id: o.id,
-          createdAt: o.createdAt || new Date().toISOString(),
-          status: o.status || 'placed',
-          totalAmount: Number(o.amount) || Number(o.totalAmount) || 0,
-          items: o.items || [],
-          shippingAddress: typeof o.address === 'object' ? o.address : {
-            fullName: o.customerName || 'Customer',
-            phone: o.phone || '',
-            street: typeof o.address === 'string' ? o.address : '',
-            city: o.city || '',
-            state: o.state || '',
-            pincode: o.pincode || '',
-          },
-          paymentMethod: o.paymentMethod || 'Online Payment',
-        }));
-        setOrders(formattedOrders);
-      } else {
-        setOrders(prev => prev.filter(o => o.id && !o.id.startsWith('ORD-WOOD-') && !o.id.startsWith('ORD00')));
+    const fetchUserOrders = () => {
+      const token = localStorage.getItem('shopmart_token');
+      if (!token) {
+        setOrders([]);
+        return;
       }
-    });
+
+      api.orders.getAll().then(res => {
+        if (res && res.success && Array.isArray(res.orders)) {
+          const formattedOrders: Order[] = res.orders.map((o: any) => ({
+            id: o.id,
+            createdAt: o.createdAt || new Date().toISOString(),
+            status: o.status || 'placed',
+            totalAmount: Number(o.amount) || Number(o.totalAmount) || 0,
+            items: o.items || [],
+            shippingAddress: typeof o.address === 'object' ? o.address : {
+              fullName: o.customerName || 'Customer',
+              phone: o.phone || '',
+              street: typeof o.address === 'string' ? o.address : '',
+              city: o.city || '',
+              state: o.state || '',
+              pincode: o.pincode || '',
+            },
+            paymentMethod: o.paymentMethod || 'Online Payment',
+          }));
+          setOrders(formattedOrders);
+        } else {
+          setOrders([]);
+        }
+      });
+    };
+
+    fetchUserOrders();
+    window.addEventListener('storage', fetchUserOrders);
+    return () => window.removeEventListener('storage', fetchUserOrders);
   }, []);
 
   useEffect(() => { localStorage.setItem('shopmart_cart', JSON.stringify(items)); }, [items]);
-  useEffect(() => { localStorage.setItem('shopmart_orders', JSON.stringify(orders)); }, [orders]);
 
   const addToCart = (product: Product, quantity = 1) => {
     setItems(prev => {
@@ -87,19 +97,33 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   const placeOrder = (orderData: Omit<Order, 'id' | 'createdAt'>): string => {
     const orderId = `ORD-WOOD-${Math.floor(1000 + Math.random() * 9000)}`;
     const newOrder: Order = { ...orderData, id: orderId, createdAt: new Date().toISOString() };
-    
-    // Call backend orders endpoint
+
+    // Read authenticated customer identity from localStorage
+    let customerName = 'Customer';
+    let customerEmail = '';
+    try {
+      const storedUser = JSON.parse(localStorage.getItem('shopmart_user') || 'null');
+      if (storedUser) {
+        customerName = storedUser.name || 'Customer';
+        customerEmail = storedUser.email || '';
+      }
+    } catch (e) {}
+
+    // Call backend orders endpoint — identity is enforced server-side from the JWT
     api.orders.create({
-      customerName: orderData.shippingAddress.fullName,
-      customerEmail: 'customer@demo.com',
+      customerName,
+      customerEmail,
       productName: orderData.items[0]?.product.name || 'Woodcraft Furniture Item',
       productId: orderData.items[0]?.product.id || 'p1',
       totalAmount: orderData.totalAmount,
-      address: `${orderData.shippingAddress.street}, ${orderData.shippingAddress.city}, ${orderData.shippingAddress.state} - ${orderData.shippingAddress.pincode}`,
+      address: orderData.address
+        ? `${orderData.address.street}, ${orderData.address.city}, ${orderData.address.state} - ${orderData.address.pincode}`
+        : '',
       paymentMethod: orderData.paymentMethod,
     }).then(res => {
       if (res && res.success && res.order && res.order.id) {
-        newOrder.id = res.order.id;
+        // Update the order ID in state to match the backend-assigned ID
+        setOrders(prev => prev.map(o => o.id === orderId ? { ...o, id: res.order.id } : o));
       }
     });
 
