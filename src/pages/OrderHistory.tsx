@@ -6,6 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { formatPrice, formatDate } from '@/lib/utils';
 import CustomerLayout from '@/components/layout/CustomerLayout';
 import { toast } from 'sonner';
+import { api } from '@/services/api';
 
 const STATUS_COLORS: Record<string, string> = {
   placed: 'bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300',
@@ -104,12 +105,19 @@ export default function OrderHistory() {
   };
 
   // Handle Return or Replace Submission (including attached issue photos)
-  const handleConfirmReturnReplace = (e: React.FormEvent) => {
+  const handleConfirmReturnReplace = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!returnReplaceModal) return;
 
     const { order, actionType } = returnReplaceModal;
     const newStatus = actionType === 'return' ? 'return_requested' : 'replacement_requested';
+    
+    try {
+      await api.orders.updateStatus(order.id, newStatus as any);
+    } catch (err) {
+      console.error('[RETURN STATUS UPDATE ERROR]', err);
+    }
+
     updateOrderStatus(order.id, newStatus as any);
 
     const imgCount = issueImages.length;

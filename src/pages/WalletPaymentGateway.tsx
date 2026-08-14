@@ -1,22 +1,23 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShieldCheck, Lock, CreditCard, QrCode, Landmark, CheckCircle2, ArrowLeft, Loader2, AlertCircle } from 'lucide-react';
+import { Wallet, ShieldCheck, CreditCard, Landmark, ArrowRight, CheckCircle2, Lock, AlertCircle, RefreshCw, QrCode, Loader2 } from 'lucide-react';
 import { formatPrice } from '@/lib/utils';
 import CustomerLayout from '@/components/layout/CustomerLayout';
 import { toast } from 'sonner';
+import { api } from '@/services/api';
 
 export default function WalletPaymentGateway() {
   const navigate = useNavigate();
 
   const [topupData, setTopupData] = useState<{ amount: number; paymentMode: string } | null>(null);
-  const [selectedTab, setSelectedTab] = useState<'card' | 'upi' | 'netbanking'>('upi');
+  const [selectedTab, setSelectedTab] = useState<'upi' | 'card' | 'netbanking'>('upi');
 
   // Form Inputs
-  const [upiId, setUpiId] = useState('');
-  const [cardNumber, setCardNumber] = useState('');
-  const [cardExpiry, setCardExpiry] = useState('');
-  const [cardCvv, setCardCvv] = useState('');
-  const [cardName, setCardName] = useState('');
+  const [upiId, setUpiId] = useState('user@okaxis');
+  const [cardNumber, setCardNumber] = useState('4532890123456789');
+  const [cardExpiry, setCardExpiry] = useState('12/28');
+  const [cardCvv, setCardCvv] = useState('892');
+  const [cardName, setCardName] = useState('John Doe');
   const [selectedBank, setSelectedBank] = useState('HDFC Bank');
 
   // Processing state
@@ -28,23 +29,21 @@ export default function WalletPaymentGateway() {
       if (stored) {
         const parsed = JSON.parse(stored);
         setTopupData(parsed);
-        if (parsed.paymentMode === 'credit_card') setSelectedTab('card');
-        else if (parsed.paymentMode === 'net_banking') setSelectedTab('netbanking');
-        else setSelectedTab('upi');
+        if (parsed.paymentMode) setSelectedTab(parsed.paymentMode as any);
       } else {
         navigate('/wallet');
       }
     } catch {
       navigate('/wallet');
     }
-  }, []);
+  }, [navigate]);
 
   if (!topupData) return null;
 
-  const amount = topupData.amount || 1000;
+  const amount = topupData.amount;
 
   // Process Payment
-  const handlePayNow = (e: React.FormEvent) => {
+  const handlePayNow = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (selectedTab === 'upi' && !upiId.includes('@')) {
@@ -58,36 +57,22 @@ export default function WalletPaymentGateway() {
 
     setIsProcessing(true);
 
-    setTimeout(() => {
+    try {
+      const res = await api.wallet.topup(amount, selectedTab);
       setIsProcessing(false);
 
-      // Update wallet balance in localStorage
-      try {
-        const currentBalance = parseFloat(localStorage.getItem('shopmart_wallet_balance') || '5400');
-        const newBalance = currentBalance + amount;
-        localStorage.setItem('shopmart_wallet_balance', newBalance.toString());
-
-        // Update txns
-        const currentTxns = JSON.parse(localStorage.getItem('shopmart_wallet_txns') || '[]');
-        const newTxn = {
-          id: `TXN-${Math.floor(10000 + Math.random() * 90000)}`,
-          type: 'credit',
-          title: `Added Funds via ${selectedTab.toUpperCase()}`,
-          category: 'add_funds',
-          amount: amount,
-          date: new Date().toISOString(),
-          status: 'completed',
-          referenceId: `PAY-${Date.now()}`,
-        };
-        localStorage.setItem('shopmart_wallet_txns', JSON.stringify([newTxn, ...currentTxns]));
-      } catch (err) {
-        console.error('Wallet update error:', err);
+      if (res && res.success) {
+        toast.success(`Payment Verified! ${formatPrice(amount)} added to your WoodNest Wallet.`);
+        sessionStorage.removeItem('pending_wallet_topup');
+        navigate('/wallet');
+      } else {
+        toast.error(res?.message || 'Wallet topup failed.');
       }
-
-      toast.success(`Payment Verified! ${formatPrice(amount)} added to your WoodNest Wallet.`);
-      sessionStorage.removeItem('pending_wallet_topup');
-      navigate('/wallet');
-    }, 2000);
+    } catch (err) {
+      setIsProcessing(false);
+      console.error('Wallet update error:', err);
+      toast.error('Payment processing failed. Please try again.');
+    }
   };
 
   return (

@@ -184,6 +184,15 @@ export default function AdminDashboard() {
   const [newCategory, setNewCategory] = useState({ name: '', image_url: '' });
   const [categoryFormError, setCategoryFormError] = useState('');
 
+  // Category Device File Upload States
+  const [addCategoryImageFile, setAddCategoryImageFile] = useState<File | null>(null);
+  const [addCategoryPreview, setAddCategoryPreview] = useState<string | null>(null);
+  const [showAddCategoryUrlInput, setShowAddCategoryUrlInput] = useState(false);
+
+  const [editCategoryFile, setEditCategoryFile] = useState<File | null>(null);
+  const [editCategoryPreview, setEditCategoryPreview] = useState<string | null>(null);
+  const [showEditCategoryUrlInput, setShowEditCategoryUrlInput] = useState(false);
+
   const adminBarData = useMemo(() => {
     const months = ['Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'];
     const monthlyTotals: Record<string, number> = { Mar: 0, Apr: 0, May: 0, Jun: 0, Jul: 0, Aug: 0 };
@@ -268,17 +277,50 @@ export default function AdminDashboard() {
     { icon: Package, label: 'Active Products', value: productList.length.toString(), change: '+8 today', bg: 'bg-orange-50 dark:bg-orange-950/30', color: 'text-orange-600' },
   ];
 
+  // ── Category File Change Handlers ─────────────────────────────────────────
+  const handleAddCategoryFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setAddCategoryImageFile(file);
+      setAddCategoryPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleEditCategoryFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setEditCategoryFile(file);
+      setEditCategoryPreview(URL.createObjectURL(file));
+    }
+  };
+
   // ── Category CRUD Handlers ──────────────────────────────────────────────
   const handleAddCategorySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCategory.name.trim()) { setCategoryFormError('Category name is required'); return; }
     setCategoryLoading(true);
     setCategoryFormError('');
-    const res = await api.admin.createCategory({ name: newCategory.name.trim(), image_url: newCategory.image_url.trim() });
+
+    let payload: FormData | { name: string; image_url?: string };
+    if (addCategoryImageFile) {
+      const formData = new FormData();
+      formData.append('name', newCategory.name.trim());
+      formData.append('image', addCategoryImageFile);
+      if (newCategory.image_url.trim()) {
+        formData.append('image_url', newCategory.image_url.trim());
+      }
+      payload = formData;
+    } else {
+      payload = { name: newCategory.name.trim(), image_url: newCategory.image_url.trim() };
+    }
+
+    const res = await api.admin.createCategory(payload);
     setCategoryLoading(false);
     if (res && res.success && res.category) {
       setCategoriesList(prev => [...prev, res.category]);
       setNewCategory({ name: '', image_url: '' });
+      setAddCategoryImageFile(null);
+      setAddCategoryPreview(null);
       setShowAddCategoryModal(false);
       toast.success(`Category "${res.category.name}" created!`);
     } else {
@@ -292,11 +334,24 @@ export default function AdminDashboard() {
     if (!editingCategory.name.trim()) { setCategoryFormError('Category name is required'); return; }
     setCategoryLoading(true);
     setCategoryFormError('');
-    const res = await api.admin.updateCategory(editingCategory.id, { name: editingCategory.name.trim(), image_url: editingCategory.image_url });
+
+    let payload: FormData | { name?: string; image_url?: string };
+    if (editCategoryImageFile) {
+      const formData = new FormData();
+      formData.append('name', editingCategory.name.trim());
+      formData.append('image', editCategoryImageFile);
+      payload = formData;
+    } else {
+      payload = { name: editingCategory.name.trim(), image_url: editingCategory.image_url };
+    }
+
+    const res = await api.admin.updateCategory(editingCategory.id, payload);
     setCategoryLoading(false);
-    if (res && res.success) {
-      setCategoriesList(prev => prev.map(c => c.id === editingCategory.id ? { ...c, name: editingCategory.name.trim(), image_url: editingCategory.image_url } : c));
+    if (res && res.success && res.category) {
+      setCategoriesList(prev => prev.map(c => c.id === editingCategory.id ? res.category : c));
       setEditingCategory(null);
+      setEditCategoryFile(null);
+      setEditCategoryPreview(null);
       toast.success(`Category updated successfully!`);
     } else {
       setCategoryFormError(res?.message || 'Failed to update category');
@@ -313,6 +368,7 @@ export default function AdminDashboard() {
       toast.error(res?.message || 'Failed to delete category');
     }
   };
+
   // ────────────────────────────────────────────────────────────────────────
 
   const navItems = [
@@ -708,7 +764,7 @@ export default function AdminDashboard() {
     toast.success('Admin profile updated successfully!');
   };
 
-  const handleSavePassword = (e: React.FormEvent) => {
+  const handleSavePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (passwordForm.newPw.length < 6) {
       toast.error('New password must be at least 6 characters.');
@@ -718,8 +774,13 @@ export default function AdminDashboard() {
       toast.error('New passwords do not match.');
       return;
     }
-    toast.success('Admin password updated successfully!');
-    setPasswordForm({ current: '', newPw: '', confirmPw: '' });
+    const res = await api.auth.updatePassword(passwordForm.current, passwordForm.newPw);
+    if (res && res.success) {
+      toast.success('Admin password updated successfully!');
+      setPasswordForm({ current: '', newPw: '', confirmPw: '' });
+    } else {
+      toast.error(res?.message || 'Password update failed.');
+    }
   };
 
   const handleSaveCommissionRules = (e: React.FormEvent) => {
@@ -1930,7 +1991,7 @@ export default function AdminDashboard() {
                   </p>
                 </div>
                 <button
-                  onClick={() => { setShowAddCategoryModal(true); setNewCategory({ name: '', image_url: '' }); setCategoryFormError(''); }}
+                  onClick={() => { setShowAddCategoryModal(true); setNewCategory({ name: '', image_url: '' }); setAddCategoryImageFile(null); setAddCategoryPreview(null); setCategoryFormError(''); }}
                   className="flex items-center gap-2 bg-[#2874F0] hover:bg-blue-600 text-white font-bold px-4 py-2.5 rounded-xl text-xs transition-colors cursor-pointer shadow-md"
                 >
                   <Plus size={15} /> Add New Category
@@ -1996,7 +2057,7 @@ export default function AdminDashboard() {
                         </div>
                         <div className="flex gap-2">
                           <button
-                            onClick={() => { setEditingCategory({ ...cat }); setCategoryFormError(''); }}
+                            onClick={() => { setEditingCategory({ ...cat }); setEditCategoryFile(null); setEditCategoryPreview(null); setCategoryFormError(''); }}
                             className="flex-1 flex items-center justify-center gap-1 bg-slate-100 dark:bg-slate-800 hover:bg-[#2874F0] hover:text-white text-foreground font-semibold py-1.5 rounded-lg text-[11px] transition-all cursor-pointer"
                           >
                             <Edit2 size={12} /> Edit
@@ -2677,7 +2738,7 @@ export default function AdminDashboard() {
               <h3 className="font-bold text-base text-foreground flex items-center gap-2">
                 <LayoutGrid size={18} className="text-[#2874F0]" /> Add New Category
               </h3>
-              <button onClick={() => setShowAddCategoryModal(false)} className="text-muted-foreground hover:text-foreground cursor-pointer"><X size={18} /></button>
+              <button onClick={() => { setShowAddCategoryModal(false); setAddCategoryImageFile(null); setAddCategoryImagePreview(null); }} className="text-muted-foreground hover:text-foreground cursor-pointer"><X size={18} /></button>
             </div>
             <form onSubmit={handleAddCategorySubmit} className="space-y-4 text-xs">
               <div>
@@ -2691,28 +2752,77 @@ export default function AdminDashboard() {
                   className="w-full bg-background border border-border rounded-xl p-2.5 text-foreground font-medium outline-none focus:border-[#2874F0] focus:ring-2 focus:ring-[#2874F0]/20 transition-all"
                 />
               </div>
+
               <div>
-                <label className="block font-semibold text-foreground mb-1.5">Category Image URL</label>
-                <input
-                  type="url"
-                  placeholder="https://images.unsplash.com/..."
-                  value={newCategory.image_url}
-                  onChange={e => setNewCategory(p => ({ ...p, image_url: e.target.value }))}
-                  className="w-full bg-background border border-border rounded-xl p-2.5 text-foreground font-medium outline-none focus:border-[#2874F0] focus:ring-2 focus:ring-[#2874F0]/20 transition-all"
-                />
-                {newCategory.image_url && (
-                  <div className="mt-2 rounded-xl overflow-hidden h-24 bg-muted border border-border">
-                    <img src={newCategory.image_url} alt="preview" className="w-full h-full object-cover" onError={e => (e.target as HTMLImageElement).style.display = 'none'} />
+                <label className="block font-semibold text-foreground mb-1.5">Category Image</label>
+                <label htmlFor="add-cat-file-input" className="border-2 border-dashed border-border hover:border-[#2874F0] rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer transition-colors bg-muted/20 hover:bg-muted/40 text-center group">
+                  <Upload size={22} className="text-muted-foreground group-hover:text-[#2874F0] mb-1.5 transition-colors" />
+                  <span className="font-bold text-xs text-foreground">Click to select image file from device</span>
+                  <span className="text-[10px] text-muted-foreground mt-0.5">Supports PNG, JPG, WEBP (Max 10MB)</span>
+                  <input
+                    id="add-cat-file-input"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleAddCategoryFileChange}
+                  />
+                </label>
+
+                {(addCategoryPreview || newCategory.image_url) && (
+                  <div className="mt-2.5 relative rounded-xl overflow-hidden h-28 bg-muted border border-border group">
+                    <img
+                      src={addCategoryPreview || newCategory.image_url}
+                      alt="Category Preview"
+                      className="w-full h-full object-cover"
+                      onError={e => (e.target as HTMLImageElement).style.display = 'none'}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAddCategoryImageFile(null);
+                        setAddCategoryImagePreview(null);
+                        setNewCategory(p => ({ ...p, image_url: '' }));
+                      }}
+                      className="absolute top-2 right-2 bg-black/70 hover:bg-rose-600 text-white p-1 rounded-lg transition-colors cursor-pointer"
+                      title="Remove image"
+                    >
+                      <X size={14} />
+                    </button>
+                    {addCategoryImageFile && (
+                      <span className="absolute bottom-2 left-2 bg-[#2874F0] text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-xs">
+                        Device File: {addCategoryImageFile.name}
+                      </span>
+                    )}
                   </div>
                 )}
+
+                <div className="mt-2 pt-2 border-t border-border/50">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddCategoryUrlInput(!showAddCategoryUrlInput)}
+                    className="text-[11px] text-[#2874F0] hover:underline font-semibold flex items-center gap-1 cursor-pointer"
+                  >
+                    {showAddCategoryUrlInput ? '─ Hide Web Image URL option' : '+ Or paste image web URL directly'}
+                  </button>
+                  {showAddCategoryUrlInput && (
+                    <input
+                      type="url"
+                      placeholder="https://images.unsplash.com/..."
+                      value={newCategory.image_url}
+                      onChange={e => setNewCategory(p => ({ ...p, image_url: e.target.value }))}
+                      className="w-full mt-1.5 bg-background border border-border rounded-xl p-2.5 text-foreground font-medium outline-none focus:border-[#2874F0] focus:ring-2 focus:ring-[#2874F0]/20 transition-all text-xs"
+                    />
+                  )}
+                </div>
               </div>
+
               {categoryFormError && (
                 <p className="text-rose-500 text-xs font-semibold flex items-center gap-1"><AlertCircle size={13} /> {categoryFormError}</p>
               )}
               <div className="flex gap-3 pt-1">
-                <button type="button" onClick={() => setShowAddCategoryModal(false)} className="flex-1 bg-muted text-foreground font-semibold py-2.5 rounded-xl cursor-pointer hover:bg-muted/80 transition-colors">Cancel</button>
+                <button type="button" onClick={() => { setShowAddCategoryModal(false); setAddCategoryImageFile(null); setAddCategoryImagePreview(null); }} className="flex-1 bg-muted text-foreground font-semibold py-2.5 rounded-xl cursor-pointer hover:bg-muted/80 transition-colors">Cancel</button>
                 <button type="submit" disabled={categoryLoading} className="flex-1 bg-[#2874F0] hover:bg-blue-600 disabled:opacity-60 text-white font-bold py-2.5 rounded-xl transition-colors shadow-md cursor-pointer">
-                  {categoryLoading ? 'Creating...' : 'Create Category'}
+                  {categoryLoading ? 'Uploading & Creating...' : 'Create Category'}
                 </button>
               </div>
             </form>
@@ -2728,7 +2838,7 @@ export default function AdminDashboard() {
               <h3 className="font-bold text-base text-foreground flex items-center gap-2">
                 <Edit2 size={18} className="text-[#2874F0]" /> Edit Category
               </h3>
-              <button onClick={() => setEditingCategory(null)} className="text-muted-foreground hover:text-foreground cursor-pointer"><X size={18} /></button>
+              <button onClick={() => { setEditingCategory(null); setEditCategoryFile(null); setEditCategoryPreview(null); }} className="text-muted-foreground hover:text-foreground cursor-pointer"><X size={18} /></button>
             </div>
             <form onSubmit={handleEditCategorySubmit} className="space-y-4 text-xs">
               <div>
@@ -2741,28 +2851,77 @@ export default function AdminDashboard() {
                   className="w-full bg-background border border-border rounded-xl p-2.5 text-foreground font-medium outline-none focus:border-[#2874F0] focus:ring-2 focus:ring-[#2874F0]/20 transition-all"
                 />
               </div>
+
               <div>
-                <label className="block font-semibold text-foreground mb-1.5">Category Image URL</label>
-                <input
-                  type="url"
-                  placeholder="https://images.unsplash.com/..."
-                  value={editingCategory.image_url || ''}
-                  onChange={e => setEditingCategory((p: any) => ({ ...p, image_url: e.target.value }))}
-                  className="w-full bg-background border border-border rounded-xl p-2.5 text-foreground font-medium outline-none focus:border-[#2874F0] focus:ring-2 focus:ring-[#2874F0]/20 transition-all"
-                />
-                {editingCategory.image_url && (
-                  <div className="mt-2 rounded-xl overflow-hidden h-24 bg-muted border border-border">
-                    <img src={editingCategory.image_url} alt="preview" className="w-full h-full object-cover" onError={e => (e.target as HTMLImageElement).style.display = 'none'} />
+                <label className="block font-semibold text-foreground mb-1.5">Category Image</label>
+                <label htmlFor="edit-cat-file-input" className="border-2 border-dashed border-border hover:border-[#2874F0] rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer transition-colors bg-muted/20 hover:bg-muted/40 text-center group">
+                  <Upload size={22} className="text-muted-foreground group-hover:text-[#2874F0] mb-1.5 transition-colors" />
+                  <span className="font-bold text-xs text-foreground">Click to select new image file from device</span>
+                  <span className="text-[10px] text-muted-foreground mt-0.5">Supports PNG, JPG, WEBP (Max 10MB)</span>
+                  <input
+                    id="edit-cat-file-input"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleEditCategoryFileChange}
+                  />
+                </label>
+
+                {(editCategoryImagePreview || editingCategory.image_url) && (
+                  <div className="mt-2.5 relative rounded-xl overflow-hidden h-28 bg-muted border border-border group">
+                    <img
+                      src={editCategoryImagePreview || editingCategory.image_url}
+                      alt="Category Preview"
+                      className="w-full h-full object-cover"
+                      onError={e => (e.target as HTMLImageElement).style.display = 'none'}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditCategoryFile(null);
+                        setEditCategoryPreview(null);
+                        setEditingCategory((p: any) => ({ ...p, image_url: '' }));
+                      }}
+                      className="absolute top-2 right-2 bg-black/70 hover:bg-rose-600 text-white p-1 rounded-lg transition-colors cursor-pointer"
+                      title="Remove image"
+                    >
+                      <X size={14} />
+                    </button>
+                    {editCategoryImageFile && (
+                      <span className="absolute bottom-2 left-2 bg-[#2874F0] text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-xs">
+                        New Device File: {editCategoryImageFile.name}
+                      </span>
+                    )}
                   </div>
                 )}
+
+                <div className="mt-2 pt-2 border-t border-border/50">
+                  <button
+                    type="button"
+                    onClick={() => setShowEditCategoryUrlInput(!showEditCategoryUrlInput)}
+                    className="text-[11px] text-[#2874F0] hover:underline font-semibold flex items-center gap-1 cursor-pointer"
+                  >
+                    {showEditCategoryUrlInput ? '─ Hide Web Image URL option' : '+ Or paste image web URL directly'}
+                  </button>
+                  {showEditCategoryUrlInput && (
+                    <input
+                      type="url"
+                      placeholder="https://images.unsplash.com/..."
+                      value={editingCategory.image_url || ''}
+                      onChange={e => setEditingCategory((p: any) => ({ ...p, image_url: e.target.value }))}
+                      className="w-full mt-1.5 bg-background border border-border rounded-xl p-2.5 text-foreground font-medium outline-none focus:border-[#2874F0] focus:ring-2 focus:ring-[#2874F0]/20 transition-all text-xs"
+                    />
+                  )}
+                </div>
               </div>
+
               {categoryFormError && (
                 <p className="text-rose-500 text-xs font-semibold flex items-center gap-1"><AlertCircle size={13} /> {categoryFormError}</p>
               )}
               <div className="flex gap-3 pt-1">
-                <button type="button" onClick={() => setEditingCategory(null)} className="flex-1 bg-muted text-foreground font-semibold py-2.5 rounded-xl cursor-pointer hover:bg-muted/80 transition-colors">Cancel</button>
+                <button type="button" onClick={() => { setEditingCategory(null); setEditCategoryFile(null); setEditCategoryPreview(null); }} className="flex-1 bg-muted text-foreground font-semibold py-2.5 rounded-xl cursor-pointer hover:bg-muted/80 transition-colors">Cancel</button>
                 <button type="submit" disabled={categoryLoading} className="flex-1 bg-[#2874F0] hover:bg-blue-600 disabled:opacity-60 text-white font-bold py-2.5 rounded-xl transition-colors shadow-md cursor-pointer">
-                  {categoryLoading ? 'Saving...' : 'Save Changes'}
+                  {categoryLoading ? 'Uploading & Saving...' : 'Save Changes'}
                 </button>
               </div>
             </form>

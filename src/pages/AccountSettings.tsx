@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { User, Moon, Sun, LogOut, Shield, Lock, Bell, Landmark, Plus, Trash2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { User, Moon, Sun, LogOut, Shield, Lock, Bell, Landmark, Plus, Trash2, CheckCircle2, AlertCircle, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import CustomerLayout from '@/components/layout/CustomerLayout';
 import { useTheme } from '@/context/ThemeContext';
 import { toast } from 'sonner';
+import { api } from '@/services/api';
 
 export interface BankAccount {
   id: string;
@@ -25,6 +26,33 @@ export default function AccountSettings() {
   const [name, setName] = useState(user?.name || '');
   const [phone, setPhone] = useState(user?.phone || '');
   const [saving, setSaving] = useState(false);
+
+  // Change Password Modal State
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [pwForm, setPwForm] = useState({ current: '', newPw: '', confirmPw: '' });
+  const [pwLoading, setPwLoading] = useState(false);
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (pwForm.newPw.length < 6) {
+      toast.error('New password must be at least 6 characters long.');
+      return;
+    }
+    if (pwForm.newPw !== pwForm.confirmPw) {
+      toast.error('Passwords do not match.');
+      return;
+    }
+    setPwLoading(true);
+    const res = await api.auth.updatePassword(pwForm.current, pwForm.newPw);
+    setPwLoading(false);
+    if (res && res.success) {
+      toast.success('Password updated successfully!');
+      setShowPasswordModal(false);
+      setPwForm({ current: '', newPw: '', confirmPw: '' });
+    } else {
+      toast.error(res?.message || 'Failed to update password.');
+    }
+  };
 
   // Bank Accounts State
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>(() => {
@@ -381,13 +409,13 @@ export default function AccountSettings() {
             <div className="flex items-center justify-between py-1">
               <div>
                 <p className="text-sm font-medium text-foreground">Password</p>
-                <p className="text-xs text-muted-foreground">Last changed: Never</p>
+                <p className="text-xs text-muted-foreground">Secure your account password</p>
               </div>
               <button
-                onClick={() => toast.info('Password reset link sent to your email!')}
+                onClick={() => { setShowPasswordModal(true); setPwForm({ current: '', newPw: '', confirmPw: '' }); }}
                 className="flex items-center gap-1.5 text-sm text-[#2874F0] border border-[#2874F0]/50 px-4 py-2 rounded-lg hover:bg-[#2874F0]/5 transition-colors font-medium cursor-pointer"
               >
-                <Lock size={13} /> Change
+                <Lock size={13} /> Change Password
               </button>
             </div>
             <div className="flex items-center justify-between py-3">
@@ -401,6 +429,61 @@ export default function AccountSettings() {
             </div>
           </div>
         </div>
+
+        {/* Change Password Modal */}
+        {showPasswordModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-card border border-border rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+              <div className="flex items-center justify-between border-b border-border pb-3">
+                <h3 className="font-bold text-base text-foreground flex items-center gap-2">
+                  <Lock size={18} className="text-[#2874F0]" /> Update Account Password
+                </h3>
+                <button onClick={() => setShowPasswordModal(false)} className="text-muted-foreground hover:text-foreground cursor-pointer"><X size={18} /></button>
+              </div>
+              <form onSubmit={handleUpdatePassword} className="space-y-4 text-xs">
+                <div>
+                  <label className="block font-semibold text-foreground mb-1">Current Password *</label>
+                  <input
+                    type="password"
+                    required
+                    placeholder="Enter current password"
+                    value={pwForm.current}
+                    onChange={e => setPwForm(p => ({ ...p, current: e.target.value }))}
+                    className="w-full bg-background border border-border rounded-xl p-2.5 text-foreground font-medium outline-none focus:border-[#2874F0] focus:ring-2 focus:ring-[#2874F0]/20 transition-all text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-foreground mb-1">New Password *</label>
+                  <input
+                    type="password"
+                    required
+                    placeholder="Min 6 characters"
+                    value={pwForm.newPw}
+                    onChange={e => setPwForm(p => ({ ...p, newPw: e.target.value }))}
+                    className="w-full bg-background border border-border rounded-xl p-2.5 text-foreground font-medium outline-none focus:border-[#2874F0] focus:ring-2 focus:ring-[#2874F0]/20 transition-all text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-foreground mb-1">Confirm New Password *</label>
+                  <input
+                    type="password"
+                    required
+                    placeholder="Repeat new password"
+                    value={pwForm.confirmPw}
+                    onChange={e => setPwForm(p => ({ ...p, confirmPw: e.target.value }))}
+                    className="w-full bg-background border border-border rounded-xl p-2.5 text-foreground font-medium outline-none focus:border-[#2874F0] focus:ring-2 focus:ring-[#2874F0]/20 transition-all text-sm"
+                  />
+                </div>
+                <div className="flex gap-3 pt-2">
+                  <button type="button" onClick={() => setShowPasswordModal(false)} className="flex-1 bg-muted text-foreground font-semibold py-2.5 rounded-xl cursor-pointer hover:bg-muted/80 transition-colors">Cancel</button>
+                  <button type="submit" disabled={pwLoading} className="flex-1 bg-[#2874F0] hover:bg-blue-600 disabled:opacity-60 text-white font-bold py-2.5 rounded-xl transition-colors shadow-md cursor-pointer">
+                    {pwLoading ? 'Updating...' : 'Update Password'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
 
         {/* Logout / Danger zone */}
         <div className="bg-card rounded-xl shadow-sm border border-red-200 dark:border-red-900/30 overflow-hidden">

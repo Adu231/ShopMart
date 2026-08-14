@@ -50,6 +50,12 @@ export const api = {
     signup: (userData: any) =>
       fetchJson('/auth/signup', { method: 'POST', body: JSON.stringify(userData) }),
 
+    updatePassword: (currentPassword: string, newPassword: string) =>
+      fetchJson('/auth/update-password', {
+        method: 'PUT',
+        body: JSON.stringify({ currentPassword, newPassword }),
+      }),
+
     getUsers: () => fetchJson('/auth/users'),
   },
 
@@ -110,10 +116,16 @@ export const api = {
 
     // Category CRUD
     getCategories: () => fetchJson('/admin/categories'),
-    createCategory: (data: { name: string; image_url?: string }) =>
-      fetchJson('/admin/categories', { method: 'POST', body: JSON.stringify(data) }),
-    updateCategory: (id: string, data: { name?: string; image_url?: string }) =>
-      fetchJson(`/admin/categories/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    createCategory: (data: FormData | { name: string; image_url?: string }) =>
+      fetchJson('/admin/categories', {
+        method: 'POST',
+        body: data instanceof FormData ? data : JSON.stringify(data),
+      }),
+    updateCategory: (id: string, data: FormData | { name?: string; image_url?: string }) =>
+      fetchJson(`/admin/categories/${id}`, {
+        method: 'PUT',
+        body: data instanceof FormData ? data : JSON.stringify(data),
+      }),
     deleteCategory: (id: string) =>
       fetchJson(`/admin/categories/${id}`, { method: 'DELETE' }),
   },
@@ -126,4 +138,16 @@ export const api = {
     sendWarning: (id: string) => fetchJson(`/reports/${id}/warning`, { method: 'POST' }),
     getSellerWarnings: () => fetchJson('/reports/warnings/seller'),
   },
+
+  // Wallet API
+  wallet: {
+    get: () => fetchJson('/wallet'),
+    topup: (amount: number, paymentMode: string = 'upi') =>
+      fetchJson('/wallet/topup', { method: 'POST', body: JSON.stringify({ amount, paymentMode }) }),
+    withdraw: (amount: number, bankName: string, accountNumber: string) =>
+      fetchJson('/wallet/withdraw', { method: 'POST', body: JSON.stringify({ amount, bankName, accountNumber }) }),
+    recordTxn: (txnData: { type: 'credit' | 'debit'; title: string; category?: string; amount: number; referenceId?: string }) =>
+      fetchJson('/wallet/record', { method: 'POST', body: JSON.stringify(txnData) }),
+  },
 };
+

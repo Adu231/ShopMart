@@ -325,6 +325,39 @@ export default function SellerDashboard() {
     return () => window.removeEventListener('storage', handleStorage);
   }, []);
 
+  // Sync return requests directly from seller-isolated orders
+  useEffect(() => {
+    if (Array.isArray(sellerOrders)) {
+      const returnOrders = sellerOrders.filter((o: any) =>
+        ['return_requested', 'replacement_requested', 'returned', 'refunded'].includes(o.status)
+      );
+
+      if (returnOrders.length > 0) {
+        const derivedRequests = returnOrders.map((o: any) => {
+          const amt = Number(o.amount || o.totalAmount) || 0;
+          return {
+            id: `RET-${o.id}`,
+            orderId: o.id,
+            customerName: o.customerName || 'Customer',
+            customerEmail: o.customerEmail || '',
+            productName: o.productName || 'Woodcraft Furniture Item',
+            productId: o.productId || 'p1',
+            amount: amt,
+            sellerNet: amt * 0.9,
+            commissionAmount: amt * 0.1,
+            type: o.status === 'replacement_requested' ? 'replace' : 'return',
+            reason: o.returnReason || 'Damaged or scratched wood surface on arrival',
+            notes: o.returnNotes || 'Customer requested return for doorstep pickup',
+            defectImages: o.defectImages || ['https://images.unsplash.com/photo-1617806118233-18e1de247200?auto=format&fit=crop&w=600&q=80'],
+            requestDate: o.createdAt ? new Date(o.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+            status: (o.status === 'returned' || o.status === 'refunded') ? 'approved' : (o.status === 'rejected' ? 'rejected' : 'pending'),
+          };
+        });
+        setReturnRequests(derivedRequests);
+      }
+    }
+  }, [sellerOrders]);
+
   const handleAcknowledgeWarning = (warningId: string) => {
     setAdminWarnings(prev => {
       const updated = prev.map(w => w.id === warningId ? { ...w, status: 'Acknowledged' } : w);
@@ -355,37 +388,28 @@ export default function SellerDashboard() {
     { id: 'settings', icon: Settings, label: 'Settings' },
   ];
 
-  const handleApproveReturnRequest = (req: typeof INITIAL_RETURN_REQUESTS[0]) => {
+  const handleApproveReturnRequest = async (req: typeof INITIAL_RETURN_REQUESTS[0]) => {
     setReturnRequests(prev => prev.map(r => r.id === req.id ? { ...r, status: 'approved' } : r));
+
+    try {
+      await api.orders.updateStatus(req.orderId, 'returned');
+      setSellerOrders(prev => prev.map(o => o.id === req.orderId ? { ...o, status: 'returned' } : o));
+    } catch (e) {
+      console.error(e);
+    }
 
     if (req.type === 'return') {
       setAvailableBalance(prev => Math.max(0, prev - req.sellerNet));
       setTotalRevenue(prev => Math.max(0, prev - req.amount));
 
       try {
-        const adminRev = parseFloat(localStorage.getItem('shopmart_admin_commission') || '450000');
-        localStorage.setItem('shopmart_admin_commission', Math.max(0, adminRev - req.commissionAmount).toString());
-      } catch (e) {
-        console.error(e);
-      }
-
-      try {
-        const userWalletBalance = parseFloat(localStorage.getItem('shopmart_wallet_balance') || '5400');
-        const newWalletBalance = userWalletBalance + req.amount;
-        localStorage.setItem('shopmart_wallet_balance', newWalletBalance.toString());
-
-        const userWalletTxns = JSON.parse(localStorage.getItem('shopmart_wallet_txns') || '[]');
-        const newTxn = {
-          id: `TXN-${Math.floor(10000 + Math.random() * 90000)}`,
+        api.wallet.recordTxn({
           type: 'credit',
           title: `Seller Approved Refund (${req.orderId})`,
           category: 'refund',
           amount: req.amount,
-          date: new Date().toISOString(),
-          status: 'completed',
           referenceId: `REF-${req.id}`,
-        };
-        localStorage.setItem('shopmart_wallet_txns', JSON.stringify([newTxn, ...userWalletTxns]));
+        }).catch(e => console.error(e));
       } catch (e) {
         console.error(e);
       }
@@ -424,7 +448,14 @@ export default function SellerDashboard() {
     }
   };
 
-  const handleRejectReturnRequest = (reqId: string) => {
+  const handleRejectReturnRequest = async (reqId: string, orderId?: string) => {
+    if (orderId) {
+      try {
+        await api.orders.updateStatus(orderId, 'delivered');
+      } catch (e) {
+        console.error(e);
+      }
+    }
     setReturnRequests(prev => prev.map(r => r.id === reqId ? { ...r, status: 'rejected' } : r));
     toast.error(`Return Request #${reqId} rejected.`);
   };
@@ -720,7 +751,7 @@ export default function SellerDashboard() {
     toast.success('Seller store profile updated!');
   };
 
-  const handleSavePassword = (e: React.FormEvent) => {
+  const handleSavePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (passwordForm.newPw.length < 6) {
       toast.error('New password must be at least 6 characters.');
@@ -730,8 +761,13 @@ export default function SellerDashboard() {
       toast.error('Passwords do not match.');
       return;
     }
-    toast.success('Seller security password updated successfully!');
-    setPasswordForm({ current: '', newPw: '', confirmPw: '' });
+    const res = await api.auth.updatePassword(passwordForm.current, passwordForm.newPw);
+    if (res && res.success) {
+      toast.success('Seller security password updated successfully!');
+      setPasswordForm({ current: '', newPw: '', confirmPw: '' });
+    } else {
+      toast.error(res?.message || 'Password update failed.');
+    }
   };
 
   const filteredReturnRequests = returnRequests.filter(r => {

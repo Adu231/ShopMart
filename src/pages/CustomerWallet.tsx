@@ -6,6 +6,7 @@ import { formatPrice, formatDate } from '@/lib/utils';
 import CustomerLayout from '@/components/layout/CustomerLayout';
 import { BankAccount } from '@/pages/AccountSettings';
 import { toast } from 'sonner';
+import { api } from '@/services/api';
 
 interface Transaction {
   id: string;
@@ -18,10 +19,6 @@ interface Transaction {
   referenceId: string;
 }
 
-const DEFAULT_TRANSACTIONS: Transaction[] = [];
-
-const DEFAULT_BANK_ACCOUNTS: BankAccount[] = [];
-
 export default function CustomerWallet() {
   const { user, isAuthenticated } = useAuth();
   const navigate = useNavigate();
@@ -29,9 +26,9 @@ export default function CustomerWallet() {
   // Wallet Balance State
   const [balance, setBalance] = useState<number>(() => {
     try {
-      const stored = localStorage.getItem('shopmart_wallet_balance');
+      const stored = localStorage.getItem(`shopmart_wallet_balance_${user?.id || 'guest'}`) || localStorage.getItem('shopmart_wallet_balance');
       const parsed = stored ? parseFloat(stored) : 0;
-      return (parsed === 5400 || parsed === 1000 || parsed === 234500 || parsed === 854620 || parsed === 2500 || parsed === 4999) ? 0 : parsed;
+      return isNaN(parsed) ? 0 : parsed;
     } catch {
       return 0;
     }
@@ -40,20 +37,15 @@ export default function CustomerWallet() {
   // Wallet Transactions State
   const [transactions, setTransactions] = useState<Transaction[]>(() => {
     try {
-      const stored = localStorage.getItem('shopmart_wallet_txns');
+      const stored = localStorage.getItem(`shopmart_wallet_txns_${user?.id || 'guest'}`) || localStorage.getItem('shopmart_wallet_txns');
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed)) {
           return parsed.filter((t: any) =>
             t.id &&
             !t.id.startsWith('TXN-98') &&
-            !t.id.startsWith('TXN-') &&
-            !t.referenceId?.startsWith('PAY-1786') &&
-            !t.referenceId?.startsWith('NEFT-') &&
-            !t.referenceId?.startsWith('REF-') &&
             !t.title?.includes('Axis Bank') &&
-            !t.title?.includes('ICICI Bank') &&
-            !t.title?.includes('Order Refund Credit')
+            !t.title?.includes('ICICI Bank')
           );
         }
       }
@@ -78,6 +70,7 @@ export default function CustomerWallet() {
   });
 
   const [txnFilter, setTxnFilter] = useState<'all' | 'credit' | 'debit'>('all');
+  const [loading, setLoading] = useState(false);
 
   // Modals
   const [showAddMoneyModal, setShowAddMoneyModal] = useState(false);
@@ -92,13 +85,40 @@ export default function CustomerWallet() {
     if (!isAuthenticated) navigate('/login?redirect=/wallet');
   }, [isAuthenticated]);
 
+  // Fetch live wallet balance and transactions from backend API
   useEffect(() => {
-    localStorage.setItem('shopmart_wallet_balance', balance.toString());
-  }, [balance]);
+    if (isAuthenticated) {
+      setLoading(true);
+      api.wallet.get().then(res => {
+        setLoading(false);
+        if (res && res.success) {
+          if (res.balance !== undefined) {
+            setBalance(Number(res.balance));
+          }
+          if (Array.isArray(res.transactions)) {
+            setTransactions(res.transactions);
+          }
+        }
+      }).catch(err => {
+        setLoading(false);
+        console.error('[WALET API FETCH ERROR]', err);
+      });
+    }
+  }, [isAuthenticated]);
 
   useEffect(() => {
-    localStorage.setItem('shopmart_wallet_txns', JSON.stringify(transactions));
-  }, [transactions]);
+    if (user?.id) {
+      localStorage.setItem(`shopmart_wallet_balance_${user.id}`, balance.toString());
+      localStorage.setItem('shopmart_wallet_balance', balance.toString());
+    }
+  }, [balance, user?.id]);
+
+  useEffect(() => {
+    if (user?.id) {
+      localStorage.setItem(`shopmart_wallet_txns_${user.id}`, JSON.stringify(transactions));
+      localStorage.setItem('shopmart_wallet_txns', JSON.stringify(transactions));
+    }
+  }, [transactions, user?.id]);
 
   // Sync saved bank accounts whenever modal opens
   useEffect(() => {
@@ -139,7 +159,7 @@ export default function CustomerWallet() {
   };
 
   // Withdraw Money Handler using Dropdown Selected Saved Bank Account!
-  const handleWithdrawMoney = (e: React.FormEvent) => {
+  const handleWithdrawMoney = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeBank) {
       toast.error('No valid bank account selected.');
@@ -156,24 +176,18 @@ export default function CustomerWallet() {
       return;
     }
 
-    const newBalance = balance - amt;
-    setBalance(newBalance);
-
-    const newTxn: Transaction = {
-      id: `TXN-${Math.floor(10000 + Math.random() * 90000)}`,
-      type: 'debit',
-      title: `Bank Transfer to ${activeBank.bankName} (**** ${activeBank.accountNumber.slice(-4)})`,
-      category: 'withdrawal',
-      amount: amt,
-      date: new Date().toISOString(),
-      status: 'completed',
-      referenceId: `NEFT-${Math.floor(100000 + Math.random() * 900000)}`,
-    };
-
-    setTransactions(prev => [newTxn, ...prev]);
-    toast.success(`Withdrawal request of ${formatPrice(amt)} to ${activeBank.bankName} (**** ${activeBank.accountNumber.slice(-4)}) submitted! Funds will reflect in 24-48 hours.`);
-    setShowWithdrawModal(false);
-    setWithdrawAmount('1000');
+    const res = await api.wallet.withdraw(amt, activeBank.bankName, activeBank.accountNumber);
+    if (res && res.success) {
+      if (res.balance !== undefined) setBalance(Number(res.balance));
+      if (res.transaction) {
+        setTransactions(prev => [res.transaction, ...prev]);
+      }
+      toast.success(`Withdrawal of ${formatPrice(amt)} to ${activeBank.bankName} (**** ${activeBank.accountNumber.slice(-4)}) submitted!`);
+      setShowWithdrawModal(false);
+      setWithdrawAmount('1000');
+    } else {
+      toast.error(res?.message || 'Withdrawal failed.');
+    }
   };
 
   const filteredTxns = transactions.filter(t => {
