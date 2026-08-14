@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Eye, EyeOff, LogIn, AlertCircle, Sparkles, CheckCircle2, ArrowRight, UserCheck, Store, ShieldAlert, Chrome, Apple, Sun, Moon } from 'lucide-react';
+import { Eye, EyeOff, LogIn, AlertCircle, Sparkles, CheckCircle2, ArrowRight, Chrome, Apple, Sun, Moon } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { toast } from 'sonner';
@@ -11,7 +11,6 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
-  const [activeRole, setActiveRole] = useState<'customer' | 'seller' | 'admin'>('customer');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -20,19 +19,6 @@ export default function Login() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const redirect = params.get('redirect') || '/';
-
-  const demoCredentials = {
-    customer: { email: 'customer@demo.com', pass: 'password123', label: 'Customer Demo', icon: UserCheck, desc: 'Shop & track orders' },
-    seller: { email: 'seller@demo.com', pass: 'password123', label: 'Seller Demo', icon: Store, desc: 'Manage inventory & products' },
-    admin: { email: 'admin@demo.com', pass: 'password123', label: 'Admin Demo', icon: ShieldAlert, desc: 'Full store oversight' },
-  };
-
-  const handleRoleSelect = (role: 'customer' | 'seller' | 'admin') => {
-    setActiveRole(role);
-    setEmail(demoCredentials[role].email);
-    setPassword(demoCredentials[role].pass);
-    setError('');
-  };
 
   const redirectUserByRole = (userObj: User | null, defaultRedirect: string) => {
     if (userObj?.role === 'admin') {
@@ -57,22 +43,8 @@ export default function Login() {
       });
       redirectUserByRole(loggedUser, redirect);
     } else {
-      setError('Invalid email or password. Click one of the quick demo buttons above.');
+      setError('Invalid email or password. Please check your credentials and try again.');
     }
-  };
-
-  const handleSocialLogin = (provider: string) => {
-    toast.info(`Connecting to ${provider}...`, {
-      description: 'Signing in with social account',
-    });
-    setTimeout(async () => {
-      const targetEmail = email || demoCredentials[activeRole].email;
-      const targetPass = password || demoCredentials[activeRole].pass;
-      await login(targetEmail, targetPass);
-      const loggedUser: User | null = JSON.parse(localStorage.getItem('shopmart_user') || 'null');
-      toast.success(`Successfully logged in via ${provider}!`);
-      redirectUserByRole(loggedUser, redirect);
-    }, 1000);
   };
 
   const handleForgotPassword = () => {
@@ -177,31 +149,7 @@ export default function Login() {
         <div className="md:col-span-7 p-6 md:p-10 flex flex-col justify-center bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100">
           <div className="mb-6">
             <h1 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-white mb-1.5">Sign In to Your Account</h1>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Choose your account type or enter your credentials below.</p>
-          </div>
-
-          {/* Role Selection Tabs */}
-          <div className="grid grid-cols-3 gap-2 p-1.5 bg-slate-100 dark:bg-slate-800/80 rounded-xl mb-6 border border-slate-200 dark:border-slate-700/60">
-            {(['customer', 'seller', 'admin'] as const).map(role => {
-              const info = demoCredentials[role];
-              const Icon = info.icon;
-              const isSelected = activeRole === role;
-              return (
-                <button
-                  key={role}
-                  type="button"
-                  onClick={() => handleRoleSelect(role)}
-                  className={`flex flex-col items-center justify-center py-2.5 px-2 rounded-lg text-xs font-semibold transition-all ${
-                    isSelected
-                      ? 'bg-[#2874F0] text-white shadow-md'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-700/50'
-                  }`}
-                >
-                  <Icon size={16} className="mb-1" />
-                  <span className="capitalize">{role}</span>
-                </button>
-              );
-            })}
+            <p className="text-xs text-slate-500 dark:text-slate-400">Enter your credentials to access your account.</p>
           </div>
 
           {error && (
@@ -287,14 +235,12 @@ export default function Login() {
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
-                onClick={() => handleSocialLogin('Google')}
                 className="flex items-center justify-center gap-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-xs font-semibold py-2.5 rounded-xl transition-all text-slate-700 dark:text-slate-200 cursor-pointer"
               >
                 <Chrome size={16} className="text-rose-500" /> Google
               </button>
               <button
                 type="button"
-                onClick={() => handleSocialLogin('Apple')}
                 className="flex items-center justify-center gap-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-xs font-semibold py-2.5 rounded-xl transition-all text-slate-700 dark:text-slate-200 cursor-pointer"
               >
                 <Apple size={16} className="text-slate-900 dark:text-white" /> Apple ID

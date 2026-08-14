@@ -17,11 +17,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const DEMO_USERS: (User & { password: string })[] = [
-  { id: 'u1', name: 'Priya Customer', email: 'customer@demo.com', role: 'customer', phone: '9876543210', password: 'password123', status: 'Active', isApproved: true },
-  { id: 'u2', name: 'Rahul Seller', email: 'seller@demo.com', role: 'seller', phone: '9876543211', password: 'password123', status: 'Active', isApproved: true },
-  { id: 'u3', name: 'Admin User', email: 'admin@demo.com', role: 'admin', phone: '9876543212', password: 'password123', status: 'Active', isApproved: true },
-];
+// No demo users — all authentication is handled by the backend API.
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(() => {
@@ -47,7 +43,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const login = async (email: string, password: string): Promise<boolean> => {
-    // Try backend REST API login first — returns a real signed JWT
+    // All authentication goes through the backend REST API — real signed JWT only
     const apiRes = await api.auth.login({ email, password });
     if (apiRes && apiRes.success && apiRes.user) {
       const loggedInUser = apiRes.user;
@@ -56,47 +52,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (apiRes.token) {
         localStorage.setItem('shopmart_token', apiRes.token);
       }
-      // Load this user's addresses
+      // Load this user's saved addresses
       const addrKey = getAddressKey(loggedInUser.id);
-      try {
-        const stored = JSON.parse(localStorage.getItem(addrKey) || '[]');
-        setAddresses(Array.isArray(stored) ? stored : []);
-      } catch { setAddresses([]); }
-      window.dispatchEvent(new Event('storage'));
-      return true;
-    }
-
-    // Offline demo fallback — these tokens won't validate on the backend
-    const demo = DEMO_USERS.find(u => u.email === email && u.password === password);
-    if (demo) {
-      const { password: _, ...u } = demo;
-      setUser(u);
-      localStorage.setItem('shopmart_user', JSON.stringify(u));
-      localStorage.setItem('shopmart_token', `demo_token_${u.id}`);
-      const addrKey = getAddressKey(u.id);
-      try {
-        const stored = JSON.parse(localStorage.getItem(addrKey) || '[]');
-        setAddresses(Array.isArray(stored) ? stored : []);
-      } catch { setAddresses([]); }
-      window.dispatchEvent(new Event('storage'));
-      return true;
-    }
-    const registered: (User & { password: string })[] = JSON.parse(localStorage.getItem('shopmart_reg_users') || '[]');
-    const found = registered.find(u => u.email === email && u.password === password);
-    if (found) {
-      const { password: _, ...u } = found;
-      try {
-        const sellerApprovals = JSON.parse(localStorage.getItem('shopmart_seller_approvals') || '[]');
-        const approval = sellerApprovals.find((s: any) => s.email === email || s.userAccountId === u.id);
-        if (approval && approval.status === 'Active') {
-          u.status = 'Active';
-          u.isApproved = true;
-        }
-      } catch (e) {}
-      setUser(u);
-      localStorage.setItem('shopmart_user', JSON.stringify(u));
-      localStorage.setItem('shopmart_token', `reg_token_${u.id}`);
-      const addrKey = getAddressKey(u.id);
       try {
         const stored = JSON.parse(localStorage.getItem(addrKey) || '[]');
         setAddresses(Array.isArray(stored) ? stored : []);
@@ -111,7 +68,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const isSeller = role === 'seller';
     const businessInfo = isSeller ? JSON.parse(localStorage.getItem('shopmart_seller_business_profile') || '{}') : {};
 
-    // Call REST API backend signup endpoint
+    // Call REST API backend signup endpoint — this is the single source of truth
     const signupRes = await api.auth.signup({
       name,
       email,
@@ -120,16 +77,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       ...businessInfo,
     });
 
-    const newUser: User = (signupRes && signupRes.user) ? signupRes.user : {
-      id: `u_${Date.now()}`,
-      name,
-      email,
-      role,
-      status: isSeller ? 'Pending' : 'Active',
-      isApproved: !isSeller,
-    };
-    const existing: (User & { password: string })[] = JSON.parse(localStorage.getItem('shopmart_reg_users') || '[]');
-    localStorage.setItem('shopmart_reg_users', JSON.stringify([...existing, { ...newUser, password }]));
+    // If backend signup failed, throw so the UI can display the error
+    if (!signupRes || !signupRes.success || !signupRes.user) {
+      const errMsg = signupRes?.message || 'Signup failed. Please try again.';
+      throw new Error(errMsg);
+    }
+
+    const newUser: User = signupRes.user;
 
     if (isSeller) {
       try {
@@ -184,6 +138,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.removeItem('shopmart_removed_products');
     localStorage.removeItem('shopmart_seller_business_profile');
     localStorage.removeItem('shopmart_seller_approvals');
+    // Clear any stale locally-registered users to prevent login confusion
+    localStorage.removeItem('shopmart_reg_users');
     window.dispatchEvent(new Event('storage'));
   };
 

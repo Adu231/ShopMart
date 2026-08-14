@@ -84,34 +84,40 @@ export default function Signup() {
     }
 
     setLoading(true);
-    await signup(form.name, form.email, form.password, role);
+    try {
+      if (role === 'seller') {
+        const sellerProfile = {
+          storeName: form.storeName.trim(),
+          gstin: form.gstin.trim(),
+          panNumber: form.panNumber.trim(),
+          accountNumber: form.accountNumber.trim(),
+          ifscCode: form.ifscCode.trim(),
+          businessAddress: form.businessAddress.trim(),
+          pickupPincode: form.pickupPincode.trim(),
+          registeredAt: new Date().toISOString(),
+        };
+        try {
+          localStorage.setItem('shopmart_seller_business_profile', JSON.stringify(sellerProfile));
+        } catch (err) {}
+      }
 
-    if (role === 'seller') {
-      const sellerProfile = {
-        storeName: form.storeName.trim(),
-        gstin: form.gstin.trim(),
-        panNumber: form.panNumber.trim(),
-        accountNumber: form.accountNumber.trim(),
-        ifscCode: form.ifscCode.trim(),
-        businessAddress: form.businessAddress.trim(),
-        pickupPincode: form.pickupPincode.trim(),
-        registeredAt: new Date().toISOString(),
-      };
-      try {
-        localStorage.setItem('shopmart_seller_business_profile', JSON.stringify(sellerProfile));
-      } catch (err) {}
-    }
+      await signup(form.name, form.email, form.password, role);
 
-    setLoading(false);
+      setLoading(false);
+      toast.success(`Account created successfully!`, {
+        description: `Welcome to WoodNest as a registered ${role}.`,
+      });
 
-    toast.success(`Account created successfully!`, {
-      description: `Welcome to WoodNest as a registered ${role}.`,
-    });
-
-    if (role === 'seller') {
-      navigate('/seller');
-    } else {
-      navigate('/');
+      if (role === 'seller') {
+        navigate('/seller');
+      } else {
+        navigate('/');
+      }
+    } catch (err: any) {
+      setLoading(false);
+      const msg = err?.message || 'Signup failed. Please try again.';
+      toast.error('Registration failed', { description: msg });
+      setErrors({ email: msg });
     }
   };
 
@@ -121,12 +127,9 @@ export default function Signup() {
   };
 
   const handleSocialSignup = (provider: string) => {
-    toast.info(`Initializing account with ${provider}...`);
-    setTimeout(async () => {
-      await signup('Demo User', 'user@demo.com', 'password123');
-      toast.success(`Account created with ${provider}!`);
-      navigate('/');
-    }, 1000);
+    toast.info(`${provider} sign-up is not available yet.`, {
+      description: 'Please register with your email and password.',
+    });
   };
 
   return (
