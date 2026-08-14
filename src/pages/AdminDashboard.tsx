@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { BarChart2, Users, Package, TrendingUp, DollarSign, Settings, LogOut, Home, Bell, CheckCircle, XCircle, AlertCircle, Shield, Search, Save, RefreshCw, Lock, Sliders, AlertTriangle, UserX, UserCheck, Trash2, Send, Eye, ShieldAlert, Flag, Wallet, ArrowDownRight, CheckCircle2, User, KeyRound, Building, ShieldCheck, X, Download, FileSpreadsheet, FileText, Tag, Copy, Percent, Plus, Ticket, Calendar, ArrowRight, Upload, Image as ImageIcon, Sparkles, Zap, Clock } from 'lucide-react';
+import { BarChart2, Users, Package, TrendingUp, DollarSign, Settings, LogOut, Home, Bell, CheckCircle, XCircle, AlertCircle, Shield, Search, Save, RefreshCw, Lock, Sliders, AlertTriangle, UserX, UserCheck, Trash2, Send, Eye, ShieldAlert, Flag, Wallet, ArrowDownRight, CheckCircle2, User, KeyRound, Building, ShieldCheck, X, Download, FileSpreadsheet, FileText, Tag, Copy, Percent, Plus, Ticket, Calendar, ArrowRight, Upload, Image as ImageIcon, Sparkles, Zap, Clock, LayoutGrid, Edit2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { PRODUCTS } from '@/constants/data';
 import { formatPrice } from '@/lib/utils';
@@ -176,6 +176,14 @@ export default function AdminDashboard() {
     };
   });
 
+  // Category Management State
+  const [categoriesList, setCategoriesList] = useState<any[]>([]);
+  const [categoryLoading, setCategoryLoading] = useState(false);
+  const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<any | null>(null);
+  const [newCategory, setNewCategory] = useState({ name: '', image_url: '' });
+  const [categoryFormError, setCategoryFormError] = useState('');
+
   const adminBarData = useMemo(() => {
     const months = ['Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug'];
     const monthlyTotals: Record<string, number> = { Mar: 0, Apr: 0, May: 0, Jun: 0, Jul: 0, Aug: 0 };
@@ -234,6 +242,13 @@ export default function AdminDashboard() {
         setUserList(res.users);
       }
     });
+
+    // Fetch categories
+    api.admin.getCategories().then(res => {
+      if (res && res.success && Array.isArray(res.categories)) {
+        setCategoriesList(res.categories);
+      }
+    });
   }, []);
 
   useEffect(() => {
@@ -253,11 +268,59 @@ export default function AdminDashboard() {
     { icon: Package, label: 'Active Products', value: productList.length.toString(), change: '+8 today', bg: 'bg-orange-50 dark:bg-orange-950/30', color: 'text-orange-600' },
   ];
 
+  // ── Category CRUD Handlers ──────────────────────────────────────────────
+  const handleAddCategorySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCategory.name.trim()) { setCategoryFormError('Category name is required'); return; }
+    setCategoryLoading(true);
+    setCategoryFormError('');
+    const res = await api.admin.createCategory({ name: newCategory.name.trim(), image_url: newCategory.image_url.trim() });
+    setCategoryLoading(false);
+    if (res && res.success && res.category) {
+      setCategoriesList(prev => [...prev, res.category]);
+      setNewCategory({ name: '', image_url: '' });
+      setShowAddCategoryModal(false);
+      toast.success(`Category "${res.category.name}" created!`);
+    } else {
+      setCategoryFormError(res?.message || 'Failed to create category');
+    }
+  };
+
+  const handleEditCategorySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCategory) return;
+    if (!editingCategory.name.trim()) { setCategoryFormError('Category name is required'); return; }
+    setCategoryLoading(true);
+    setCategoryFormError('');
+    const res = await api.admin.updateCategory(editingCategory.id, { name: editingCategory.name.trim(), image_url: editingCategory.image_url });
+    setCategoryLoading(false);
+    if (res && res.success) {
+      setCategoriesList(prev => prev.map(c => c.id === editingCategory.id ? { ...c, name: editingCategory.name.trim(), image_url: editingCategory.image_url } : c));
+      setEditingCategory(null);
+      toast.success(`Category updated successfully!`);
+    } else {
+      setCategoryFormError(res?.message || 'Failed to update category');
+    }
+  };
+
+  const handleDeleteCategory = async (cat: any) => {
+    if (!window.confirm(`Delete category "${cat.name}"? This cannot be undone.`)) return;
+    const res = await api.admin.deleteCategory(cat.id);
+    if (res && res.success) {
+      setCategoriesList(prev => prev.filter(c => c.id !== cat.id));
+      toast.success(`Category "${cat.name}" deleted.`);
+    } else {
+      toast.error(res?.message || 'Failed to delete category');
+    }
+  };
+  // ────────────────────────────────────────────────────────────────────────
+
   const navItems = [
     { id: 'overview', icon: BarChart2, label: 'Overview' },
     { id: 'landing', icon: Sliders, label: 'Landing Page & Banners' },
     { id: 'sellers', icon: Users, label: 'Seller Approvals' },
     { id: 'products', icon: Package, label: 'Products' },
+    { id: 'categories', icon: LayoutGrid, label: 'Category Management' },
     { id: 'users', icon: Users, label: 'User Management' },
     { id: 'coupons', icon: Tag, label: 'Coupon Management' },
     { id: 'reports', icon: Flag, label: 'Customer Reports' },
@@ -1853,6 +1916,106 @@ export default function AdminDashboard() {
             </div>
           )}
 
+          {/* ── CATEGORY MANAGEMENT ────────────────────────────────────── */}
+          {activeSection === 'categories' && (
+            <div className="space-y-6">
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h1 className="text-xl font-black text-foreground flex items-center gap-2">
+                    <LayoutGrid size={22} className="text-[#2874F0]" /> Category Management
+                  </h1>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Manage platform product categories. Sellers pick from these in the product listing form.
+                  </p>
+                </div>
+                <button
+                  onClick={() => { setShowAddCategoryModal(true); setNewCategory({ name: '', image_url: '' }); setCategoryFormError(''); }}
+                  className="flex items-center gap-2 bg-[#2874F0] hover:bg-blue-600 text-white font-bold px-4 py-2.5 rounded-xl text-xs transition-colors cursor-pointer shadow-md"
+                >
+                  <Plus size={15} /> Add New Category
+                </button>
+              </div>
+
+              {/* Stats strip */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                <div className="bg-card border border-border rounded-2xl p-4 flex items-center gap-3">
+                  <div className="bg-blue-50 dark:bg-blue-950/40 p-2.5 rounded-xl"><LayoutGrid size={18} className="text-[#2874F0]" /></div>
+                  <div><p className="text-[11px] text-muted-foreground">Total Categories</p><p className="text-lg font-black text-foreground">{categoriesList.length}</p></div>
+                </div>
+                <div className="bg-card border border-border rounded-2xl p-4 flex items-center gap-3">
+                  <div className="bg-emerald-50 dark:bg-emerald-950/40 p-2.5 rounded-xl"><Package size={18} className="text-emerald-600" /></div>
+                  <div><p className="text-[11px] text-muted-foreground">Total Products</p><p className="text-lg font-black text-foreground">{productList.length}</p></div>
+                </div>
+                <div className="bg-card border border-border rounded-2xl p-4 flex items-center gap-3 col-span-2 sm:col-span-1">
+                  <div className="bg-indigo-50 dark:bg-indigo-950/40 p-2.5 rounded-xl"><Tag size={18} className="text-indigo-600" /></div>
+                  <div><p className="text-[11px] text-muted-foreground">Avg Products/Cat</p><p className="text-lg font-black text-foreground">{categoriesList.length > 0 ? Math.round(productList.length / categoriesList.length) : 0}</p></div>
+                </div>
+              </div>
+
+              {/* Category Cards Grid */}
+              {categoriesList.length === 0 ? (
+                <div className="bg-card border border-dashed border-border rounded-2xl p-12 text-center text-muted-foreground">
+                  <LayoutGrid size={40} className="mx-auto mb-3 opacity-30" />
+                  <p className="font-semibold">No categories yet</p>
+                  <p className="text-xs mt-1">Click "Add New Category" to create your first product category.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {categoriesList.map((cat) => (
+                    <div key={cat.id} className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all group">
+                      {/* Category Image */}
+                      <div className="relative h-36 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700 overflow-hidden">
+                        {cat.image_url ? (
+                          <img
+                            src={cat.image_url}
+                            alt={cat.name}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <LayoutGrid size={36} className="text-slate-400 dark:text-slate-500" />
+                          </div>
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </div>
+
+                      {/* Category Info */}
+                      <div className="p-3.5">
+                        <div className="flex items-start justify-between gap-2 mb-3">
+                          <div>
+                            <h3 className="font-bold text-sm text-foreground leading-tight">{cat.name}</h3>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">
+                              {productList.filter(p => p.category?.toLowerCase() === cat.name?.toLowerCase()).length} products
+                            </p>
+                          </div>
+                          <span className="bg-blue-50 dark:bg-blue-950/40 text-[#2874F0] text-[10px] font-bold px-2 py-0.5 rounded-full border border-blue-200 dark:border-blue-800 shrink-0">
+                            #{cat.sortOrder}
+                          </span>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => { setEditingCategory({ ...cat }); setCategoryFormError(''); }}
+                            className="flex-1 flex items-center justify-center gap-1 bg-slate-100 dark:bg-slate-800 hover:bg-[#2874F0] hover:text-white text-foreground font-semibold py-1.5 rounded-lg text-[11px] transition-all cursor-pointer"
+                          >
+                            <Edit2 size={12} /> Edit
+                          </button>
+                          <button
+                            onClick={() => handleDeleteCategory(cat)}
+                            className="flex-1 flex items-center justify-center gap-1 bg-slate-100 dark:bg-slate-800 hover:bg-rose-600 hover:text-white text-foreground font-semibold py-1.5 rounded-lg text-[11px] transition-all cursor-pointer"
+                          >
+                            <Trash2 size={12} /> Delete
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Settings */}
           {activeSection === 'settings' && (
             <div className="space-y-5">
@@ -2499,6 +2662,107 @@ export default function AdminDashboard() {
                   className="flex-1 bg-rose-600 hover:bg-rose-700 text-white font-bold py-2.5 rounded-xl transition-colors cursor-pointer shadow-md"
                 >
                   Confirm & Unlist Product
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── ADD CATEGORY MODAL ──────────────────────────────────────────── */}
+      {showAddCategoryModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-card border border-border rounded-2xl max-w-md w-full p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-5 border-b border-border pb-3">
+              <h3 className="font-bold text-base text-foreground flex items-center gap-2">
+                <LayoutGrid size={18} className="text-[#2874F0]" /> Add New Category
+              </h3>
+              <button onClick={() => setShowAddCategoryModal(false)} className="text-muted-foreground hover:text-foreground cursor-pointer"><X size={18} /></button>
+            </div>
+            <form onSubmit={handleAddCategorySubmit} className="space-y-4 text-xs">
+              <div>
+                <label className="block font-semibold text-foreground mb-1.5">Category Name *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Outdoor Furniture"
+                  value={newCategory.name}
+                  onChange={e => setNewCategory(p => ({ ...p, name: e.target.value }))}
+                  className="w-full bg-background border border-border rounded-xl p-2.5 text-foreground font-medium outline-none focus:border-[#2874F0] focus:ring-2 focus:ring-[#2874F0]/20 transition-all"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold text-foreground mb-1.5">Category Image URL</label>
+                <input
+                  type="url"
+                  placeholder="https://images.unsplash.com/..."
+                  value={newCategory.image_url}
+                  onChange={e => setNewCategory(p => ({ ...p, image_url: e.target.value }))}
+                  className="w-full bg-background border border-border rounded-xl p-2.5 text-foreground font-medium outline-none focus:border-[#2874F0] focus:ring-2 focus:ring-[#2874F0]/20 transition-all"
+                />
+                {newCategory.image_url && (
+                  <div className="mt-2 rounded-xl overflow-hidden h-24 bg-muted border border-border">
+                    <img src={newCategory.image_url} alt="preview" className="w-full h-full object-cover" onError={e => (e.target as HTMLImageElement).style.display = 'none'} />
+                  </div>
+                )}
+              </div>
+              {categoryFormError && (
+                <p className="text-rose-500 text-xs font-semibold flex items-center gap-1"><AlertCircle size={13} /> {categoryFormError}</p>
+              )}
+              <div className="flex gap-3 pt-1">
+                <button type="button" onClick={() => setShowAddCategoryModal(false)} className="flex-1 bg-muted text-foreground font-semibold py-2.5 rounded-xl cursor-pointer hover:bg-muted/80 transition-colors">Cancel</button>
+                <button type="submit" disabled={categoryLoading} className="flex-1 bg-[#2874F0] hover:bg-blue-600 disabled:opacity-60 text-white font-bold py-2.5 rounded-xl transition-colors shadow-md cursor-pointer">
+                  {categoryLoading ? 'Creating...' : 'Create Category'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── EDIT CATEGORY MODAL ─────────────────────────────────────────── */}
+      {editingCategory && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-card border border-border rounded-2xl max-w-md w-full p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-5 border-b border-border pb-3">
+              <h3 className="font-bold text-base text-foreground flex items-center gap-2">
+                <Edit2 size={18} className="text-[#2874F0]" /> Edit Category
+              </h3>
+              <button onClick={() => setEditingCategory(null)} className="text-muted-foreground hover:text-foreground cursor-pointer"><X size={18} /></button>
+            </div>
+            <form onSubmit={handleEditCategorySubmit} className="space-y-4 text-xs">
+              <div>
+                <label className="block font-semibold text-foreground mb-1.5">Category Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={editingCategory.name}
+                  onChange={e => setEditingCategory((p: any) => ({ ...p, name: e.target.value }))}
+                  className="w-full bg-background border border-border rounded-xl p-2.5 text-foreground font-medium outline-none focus:border-[#2874F0] focus:ring-2 focus:ring-[#2874F0]/20 transition-all"
+                />
+              </div>
+              <div>
+                <label className="block font-semibold text-foreground mb-1.5">Category Image URL</label>
+                <input
+                  type="url"
+                  placeholder="https://images.unsplash.com/..."
+                  value={editingCategory.image_url || ''}
+                  onChange={e => setEditingCategory((p: any) => ({ ...p, image_url: e.target.value }))}
+                  className="w-full bg-background border border-border rounded-xl p-2.5 text-foreground font-medium outline-none focus:border-[#2874F0] focus:ring-2 focus:ring-[#2874F0]/20 transition-all"
+                />
+                {editingCategory.image_url && (
+                  <div className="mt-2 rounded-xl overflow-hidden h-24 bg-muted border border-border">
+                    <img src={editingCategory.image_url} alt="preview" className="w-full h-full object-cover" onError={e => (e.target as HTMLImageElement).style.display = 'none'} />
+                  </div>
+                )}
+              </div>
+              {categoryFormError && (
+                <p className="text-rose-500 text-xs font-semibold flex items-center gap-1"><AlertCircle size={13} /> {categoryFormError}</p>
+              )}
+              <div className="flex gap-3 pt-1">
+                <button type="button" onClick={() => setEditingCategory(null)} className="flex-1 bg-muted text-foreground font-semibold py-2.5 rounded-xl cursor-pointer hover:bg-muted/80 transition-colors">Cancel</button>
+                <button type="submit" disabled={categoryLoading} className="flex-1 bg-[#2874F0] hover:bg-blue-600 disabled:opacity-60 text-white font-bold py-2.5 rounded-xl transition-colors shadow-md cursor-pointer">
+                  {categoryLoading ? 'Saving...' : 'Save Changes'}
                 </button>
               </div>
             </form>

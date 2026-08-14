@@ -107,6 +107,15 @@ export const api = {
     getSellers: () => fetchJson('/admin/sellers'),
     approveSeller: (id: string, status: 'Active' | 'Blocked' = 'Active') =>
       fetchJson(`/admin/sellers/${id}/approve`, { method: 'PUT', body: JSON.stringify({ status }) }),
+
+    // Category CRUD
+    getCategories: () => fetchJson('/admin/categories'),
+    createCategory: (data: { name: string; image_url?: string }) =>
+      fetchJson('/admin/categories', { method: 'POST', body: JSON.stringify(data) }),
+    updateCategory: (id: string, data: { name?: string; image_url?: string }) =>
+      fetchJson(`/admin/categories/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    deleteCategory: (id: string) =>
+      fetchJson(`/admin/categories/${id}`, { method: 'DELETE' }),
   },
 
   // Customer Reports & Warnings API

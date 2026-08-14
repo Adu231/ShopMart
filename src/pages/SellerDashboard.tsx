@@ -89,12 +89,14 @@ export default function SellerDashboard() {
   const [editImagePreviews, setEditImagePreviews] = useState<string[]>([]);
   const [newProduct, setNewProduct] = useState({
     name: '',
-    category: 'Living Room',
+    category: '',
     price: '',
     stock: '15',
     imageUrlInput: '',
     description: '',
   });
+  // Dynamic categories from backend
+  const [platformCategories, setPlatformCategories] = useState<{id: string; name: string}[]>([]);
 
   // Deletion & Removal Modal state
   const [productToDelete, setProductToDelete] = useState<any | null>(null);
@@ -311,6 +313,14 @@ export default function SellerDashboard() {
       setRemovedItems([]);
     }
 
+    // Fetch platform categories (public endpoint — no token needed)
+    api.admin.getCategories().then(res => {
+      if (res && res.success && Array.isArray(res.categories) && res.categories.length > 0) {
+        setPlatformCategories(res.categories);
+        setNewProduct(prev => ({ ...prev, category: prev.category || res.categories[0].name }));
+      }
+    });
+
     window.addEventListener('storage', handleStorage);
     return () => window.removeEventListener('storage', handleStorage);
   }, []);
@@ -525,7 +535,7 @@ export default function SellerDashboard() {
     setShowAddProductModal(false);
     setUploadImageFiles([]);
     setDeviceImageFiles([]);
-    setNewProduct({ name: '', category: 'Living Room', price: '', stock: '15', imageUrlInput: '', description: '' });
+    setNewProduct({ name: '', category: platformCategories[0]?.name || '', price: '', stock: '15', imageUrlInput: '', description: '' });
   };
 
   const handleEditProductSubmit = async (e: React.FormEvent) => {
@@ -2373,11 +2383,14 @@ export default function SellerDashboard() {
                     onChange={e => setEditingProduct({ ...editingProduct, category: e.target.value })}
                     className="w-full bg-background border border-border rounded-xl p-2.5 text-foreground font-medium outline-none"
                   >
-                    <option value="Living Room">Living Room</option>
-                    <option value="Bedroom">Bedroom</option>
-                    <option value="Dining">Dining</option>
-                    <option value="Study">Study</option>
-                    <option value="Storage">Storage</option>
+                    {platformCategories.length > 0
+                      ? platformCategories.map(cat => (
+                          <option key={cat.id} value={cat.name}>{cat.name}</option>
+                        ))
+                      : (
+                          <option value="">Loading categories...</option>
+                        )
+                    }
                   </select>
                 </div>
                 <div>
@@ -2522,11 +2535,14 @@ export default function SellerDashboard() {
                     onChange={e => setNewProduct({ ...newProduct, category: e.target.value })}
                     className="w-full bg-background border border-border rounded-xl p-2.5 text-foreground font-medium outline-none"
                   >
-                    <option value="Living Room">Living Room</option>
-                    <option value="Bedroom">Bedroom</option>
-                    <option value="Dining">Dining</option>
-                    <option value="Study">Study</option>
-                    <option value="Storage">Storage</option>
+                    {platformCategories.length > 0
+                      ? platformCategories.map(cat => (
+                          <option key={cat.id} value={cat.name}>{cat.name}</option>
+                        ))
+                      : (
+                          <option value="">Loading categories...</option>
+                        )
+                    }
                   </select>
                 </div>
                 <div>
