@@ -16,6 +16,12 @@ const generateCaptchaCode = () => {
 };
 
 export default function Login() {
+  const { theme, toggleTheme } = useTheme();
+  const { login } = useAuth();
+  const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const redirect = params.get('redirect') || '/';
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
@@ -98,12 +104,6 @@ export default function Login() {
       drawCaptchaCanvas(captchaCode);
     }
   }, [captchaCode, drawCaptchaCanvas]);
-
-  const { login } = useAuth();
-  const { theme, toggleTheme } = useTheme();
-  const navigate = useNavigate();
-  const [params] = useSearchParams();
-  const redirect = params.get('redirect') || '/';
 
   const redirectUserByRole = (userObj: User | null, defaultRedirect: string) => {
     if (userObj?.role === 'admin') {
