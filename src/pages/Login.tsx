@@ -1,10 +1,19 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Eye, EyeOff, LogIn, AlertCircle, Sparkles, CheckCircle2, ArrowRight, Chrome, Apple, Sun, Moon } from 'lucide-react';
+import { Eye, EyeOff, LogIn, AlertCircle, Sparkles, CheckCircle2, ArrowRight, Chrome, Apple, Sun, Moon, RefreshCw, ShieldCheck } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useTheme } from '@/context/ThemeContext';
 import { toast } from 'sonner';
 import type { User } from '@/types';
+
+const generateCaptchaCode = () => {
+  const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz';
+  let text = '';
+  for (let i = 0; i < 6; i++) {
+    text += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return text;
+};
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -13,6 +22,82 @@ export default function Login() {
   const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Security CAPTCHA State
+  const [captchaCode, setCaptchaCode] = useState('');
+  const [captchaInput, setCaptchaInput] = useState('');
+  const [captchaError, setCaptchaError] = useState(false);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  const refreshCaptcha = useCallback(() => {
+    const newCode = generateCaptchaCode();
+    setCaptchaCode(newCode);
+    setCaptchaInput('');
+    setCaptchaError(false);
+  }, []);
+
+  const drawCaptchaCanvas = useCallback((text: string) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Clear
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Background fill
+    ctx.fillStyle = theme === 'dark' ? '#1e293b' : '#f8fafc';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Noise Lines
+    for (let i = 0; i < 5; i++) {
+      ctx.strokeStyle = `rgba(40, 116, 240, ${0.15 + Math.random() * 0.25})`;
+      ctx.beginPath();
+      ctx.moveTo(Math.random() * canvas.width, Math.random() * canvas.height);
+      ctx.lineTo(Math.random() * canvas.width, Math.random() * canvas.height);
+      ctx.stroke();
+    }
+
+    // Noise Dots
+    for (let i = 0; i < 30; i++) {
+      ctx.fillStyle = `rgba(100, 116, 139, ${Math.random() * 0.3})`;
+      ctx.beginPath();
+      ctx.arc(Math.random() * canvas.width, Math.random() * canvas.height, 1.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // CAPTCHA Characters
+    ctx.font = 'bold 22px monospace';
+    ctx.textBaseline = 'middle';
+
+    const colors = theme === 'dark'
+      ? ['#60a5fa', '#38bdf8', '#818cf8', '#a78bfa', '#f472b6']
+      : ['#1d4ed8', '#0284c7', '#4338ca', '#7c3aed', '#be185d'];
+
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i];
+      const x = 16 + i * 24;
+      const y = canvas.height / 2 + (Math.random() * 6 - 3);
+      const angle = (Math.random() * 0.4 - 0.2);
+
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(angle);
+      ctx.fillStyle = colors[i % colors.length];
+      ctx.fillText(char, 0, 0);
+      ctx.restore();
+    }
+  }, [theme]);
+
+  useEffect(() => {
+    refreshCaptcha();
+  }, [refreshCaptcha]);
+
+  useEffect(() => {
+    if (captchaCode) {
+      drawCaptchaCanvas(captchaCode);
+    }
+  }, [captchaCode, drawCaptchaCanvas]);
 
   const { login } = useAuth();
   const { theme, toggleTheme } = useTheme();
@@ -33,6 +118,16 @@ export default function Login() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setCaptchaError(false);
+
+    // Verify CAPTCHA Code
+    if (captchaInput.trim().toLowerCase() !== captchaCode.toLowerCase()) {
+      setCaptchaError(true);
+      setError('Security verification failed! Invalid CAPTCHA code. Please enter the exact characters shown in the box.');
+      refreshCaptcha();
+      return;
+    }
+
     setLoading(true);
     const ok = await login(email, password);
     setLoading(false);
@@ -44,6 +139,7 @@ export default function Login() {
       redirectUserByRole(loggedUser, redirect);
     } else {
       setError('Invalid email or password. Please check your credentials and try again.');
+      refreshCaptcha();
     }
   };
 
@@ -200,6 +296,53 @@ export default function Login() {
                   {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
+            </div>
+
+            {/* CAPTCHA Security Verification Box */}
+            <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 rounded-2xl p-4 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+                  <ShieldCheck size={16} className="text-[#2874F0]" /> Security CAPTCHA Verification
+                </label>
+                <span className="text-[10px] bg-blue-100 dark:bg-blue-950 text-[#2874F0] dark:text-blue-300 font-semibold px-2 py-0.5 rounded-md border border-blue-200 dark:border-blue-800">
+                  Anti-Bot Protection
+                </span>
+              </div>
+
+              <div className="flex items-center gap-3">
+                {/* Visual Canvas Box */}
+                <div className="relative border border-slate-300 dark:border-slate-700 rounded-xl overflow-hidden shadow-xs bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                  <canvas ref={canvasRef} width={160} height={42} className="block cursor-pointer select-none" title="Click refresh icon to change code" />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={refreshCaptcha}
+                  className="p-2.5 rounded-xl bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:text-[#2874F0] dark:hover:text-blue-400 hover:bg-slate-100 dark:hover:bg-slate-600 transition-all cursor-pointer shrink-0 shadow-xs"
+                  title="Generate New CAPTCHA Code"
+                >
+                  <RefreshCw size={17} />
+                </button>
+
+                <input
+                  type="text"
+                  value={captchaInput}
+                  onChange={e => {
+                    setCaptchaInput(e.target.value);
+                    setCaptchaError(false);
+                  }}
+                  required
+                  maxLength={6}
+                  placeholder="Enter Code"
+                  className={`w-full bg-white dark:bg-slate-900 border ${captchaError ? 'border-rose-500 ring-2 ring-rose-500/20' : 'border-slate-300 dark:border-slate-700'} rounded-xl px-3.5 py-2.5 text-sm font-mono font-bold tracking-wider text-slate-900 dark:text-white outline-none focus:border-[#2874F0] focus:ring-2 focus:ring-[#2874F0]/30 transition-all uppercase`}
+                />
+              </div>
+
+              {captchaError && (
+                <p className="text-[11px] font-semibold text-rose-500 flex items-center gap-1">
+                  <AlertCircle size={13} /> CAPTCHA code does not match. Please try again.
+                </p>
+              )}
             </div>
 
             <div className="flex items-center justify-between text-xs py-1">
