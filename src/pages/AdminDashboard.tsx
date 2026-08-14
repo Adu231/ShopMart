@@ -133,6 +133,17 @@ export default function AdminDashboard() {
     }
   });
 
+  // Auto-persist landing page settings to localStorage whenever modified
+  useEffect(() => {
+    try {
+      localStorage.setItem('shopmart_landing_settings', JSON.stringify(landingSettings));
+      window.dispatchEvent(new Event('storage'));
+      window.dispatchEvent(new CustomEvent('shopmart_settings_changed', { detail: landingSettings }));
+    } catch (e) {
+      console.error(e);
+    }
+  }, [landingSettings]);
+
   const handleSetQuickFlashDuration = (hours: number) => {
     const targetDate = new Date(Date.now() + hours * 60 * 60 * 1000);
     const pad = (n: number) => String(n).padStart(2, '0');

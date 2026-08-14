@@ -75,7 +75,12 @@ export default function FlashSale() {
       } catch {}
     };
     window.addEventListener('storage', handleStorage);
-    return () => window.removeEventListener('storage', handleStorage);
+    window.addEventListener('shopmart_settings_changed', handleStorage);
+    handleStorage();
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('shopmart_settings_changed', handleStorage);
+    };
   }, []);
 
   useEffect(() => {

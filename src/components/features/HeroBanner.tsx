@@ -27,7 +27,12 @@ export default function HeroBanner() {
       }
     };
     window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    window.addEventListener('shopmart_settings_changed', handleStorageChange);
+    handleStorageChange();
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('shopmart_settings_changed', handleStorageChange);
+    };
   }, []);
 
   useEffect(() => {
