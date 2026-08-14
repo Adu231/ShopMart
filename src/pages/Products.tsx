@@ -28,6 +28,15 @@ export default function Products() {
   const [minRating, setMinRating] = useState(0);
   const [selectedBrands, setSelectedBrands] = useState<string[]>(selectedBrand ? [selectedBrand] : []);
   const [selectedCategories, setSelectedCategories] = useState<string[]>(selectedCategory ? [selectedCategory] : []);
+  const [categoriesList, setCategoriesList] = useState<any[]>([]);
+
+  useEffect(() => {
+    api.admin.getCategories().then(res => {
+      if (res && res.success && Array.isArray(res.categories)) {
+        setCategoriesList(res.categories);
+      }
+    }).catch(err => console.error(err));
+  }, []);
 
   // Synchronize category state when URL search param changes (e.g. clicking category in navbar)
   useEffect(() => {
@@ -135,16 +144,18 @@ export default function Products() {
         <h3 className="font-bold text-foreground">Filters</h3>
         <button onClick={clearAll} className="text-xs text-[#2874F0] hover:underline">Clear All</button>
       </div>
-      <FilterSection title="Category" id="category">
-        <div className="space-y-2">
-          {CATEGORIES.map(c => (
-            <label key={c.id} className="flex items-center gap-2 cursor-pointer group">
-              <input type="checkbox" checked={selectedCategories.includes(c.name)} onChange={() => toggleCategory(c.name)} className="rounded" />
-              <span className="text-sm text-foreground group-hover:text-[#2874F0]">{c.name}</span>
-            </label>
-          ))}
-        </div>
-      </FilterSection>
+      {categoriesList.length > 0 && (
+        <FilterSection title="Category" id="category">
+          <div className="space-y-2">
+            {categoriesList.map(c => (
+              <label key={c.id} className="flex items-center gap-2 cursor-pointer group">
+                <input type="checkbox" checked={selectedCategories.includes(c.name)} onChange={() => toggleCategory(c.name)} className="rounded" />
+                <span className="text-sm text-foreground group-hover:text-[#2874F0]">{c.name}</span>
+              </label>
+            ))}
+          </div>
+        </FilterSection>
+      )}
       <FilterSection title="Brand" id="brand">
         <div className="space-y-2 max-h-48 overflow-y-auto">
           {BRAND_NAMES.map(b => (

@@ -5,18 +5,27 @@ import { useTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
 import { useWishlist } from '@/context/WishlistContext';
-import { CATEGORIES } from '@/constants/data';
+import { api } from '@/services/api';
 
 export default function Navbar() {
   const [query, setQuery] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
+  const [categories, setCategories] = useState<any[]>([]);
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
   const { user, logout, isAuthenticated } = useAuth();
   const { totalItems } = useCart();
   const { wishlistCount } = useWishlist();
   const dropRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    api.admin.getCategories().then(res => {
+      if (res && res.success && Array.isArray(res.categories)) {
+        setCategories(res.categories);
+      }
+    }).catch(err => console.error(err));
+  }, []);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -133,23 +142,25 @@ export default function Navbar() {
         </div>
       </div>
 
-      <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 hidden md:block">
-        <div className="max-w-7xl mx-auto px-4 flex items-center gap-5 overflow-x-auto scrollbar-hide py-1.5">
-          {CATEGORIES.map(cat => (
-            <Link key={cat.id} to={`/products?category=${encodeURIComponent(cat.name)}`} className="flex items-center gap-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 hover:text-[#2874F0] whitespace-nowrap transition-colors py-1">
-              <img src={cat.image} alt={cat.name} className="w-7 h-7 rounded object-cover" />
-              <span>{cat.name}</span>
-            </Link>
-          ))}
-          <Link to="/signup?role=seller" className="text-xs font-medium text-[#2874F0] dark:text-blue-400 hover:underline whitespace-nowrap ml-auto">Sell Your Furniture</Link>
+      {categories.length > 0 && (
+        <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 hidden md:block">
+          <div className="max-w-7xl mx-auto px-4 flex items-center gap-5 overflow-x-auto scrollbar-hide py-1.5">
+            {categories.map(cat => (
+              <Link key={cat.id} to={`/products?category=${encodeURIComponent(cat.name)}`} className="flex items-center gap-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 hover:text-[#2874F0] whitespace-nowrap transition-colors py-1">
+                <img src={cat.image_url || cat.image || 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=300&q=80'} alt={cat.name} className="w-7 h-7 rounded object-cover" />
+                <span>{cat.name}</span>
+              </Link>
+            ))}
+            <Link to="/signup?role=seller" className="text-xs font-medium text-[#2874F0] dark:text-blue-400 hover:underline whitespace-nowrap ml-auto">Sell Your Furniture</Link>
+          </div>
         </div>
-      </div>
+      )}
 
       {menuOpen && (
         <div className="md:hidden bg-white dark:bg-gray-900 border-b shadow-lg divide-y divide-gray-100 dark:divide-gray-800">
-          {CATEGORIES.map(cat => (
+          {categories.map(cat => (
             <Link key={cat.id} to={`/products?category=${encodeURIComponent(cat.name)}`} onClick={() => setMenuOpen(false)} className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">
-              <img src={cat.image} alt={cat.name} className="w-8 h-8 rounded object-cover" /> {cat.name}
+              <img src={cat.image_url || cat.image || 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=300&q=80'} alt={cat.name} className="w-8 h-8 rounded object-cover" /> {cat.name}
             </Link>
           ))}
         </div>
