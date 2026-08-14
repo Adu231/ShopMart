@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { BarChart2, Package, ShoppingBag, TrendingUp, DollarSign, Star, Plus, LogOut, Home, AlertCircle, Settings, Wallet, CheckCircle2, ArrowDownRight, Layers, Boxes, Trash2, Edit, Save, RefreshCw, User, KeyRound, Building, Building2, ShieldCheck, ShieldAlert, AlertTriangle, ChevronRight, Download, FileSpreadsheet, Calendar, X, FileText, Upload, Image as ImageIcon, MessageSquare, ThumbsUp, RotateCcw, Check, Eye, Lock, ExternalLink, ArrowRight } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { PRODUCTS } from '@/constants/data';
-import { formatPrice } from '@/lib/utils';
+import { formatPrice, isPaymentRecognized } from '@/lib/utils';
 import { toast } from 'sonner';
 import { api } from '@/services/api';
 
@@ -61,6 +61,8 @@ const downloadCSV = (filename: string, csvContent: string) => {
   document.body.removeChild(link);
 };
 
+
+
 export default function SellerDashboard() {
   const { user, isAuthenticated, logout, updateUser } = useAuth();
   const navigate = useNavigate();
@@ -108,7 +110,7 @@ export default function SellerDashboard() {
   const [removedItems, setRemovedItems] = useState<any[]>([]);
 
   // Orders State
-  const [sellerOrders, setSellerOrders] = useState(INITIAL_SELLER_ORDERS);
+  const [sellerOrders, setSellerOrders] = useState<any[]>(INITIAL_SELLER_ORDERS);
 
   // Customer Reviews State & Filters
   const [reviewsList, setReviewsList] = useState(INITIAL_CUSTOMER_REVIEWS);
@@ -116,13 +118,28 @@ export default function SellerDashboard() {
   const [sellerReplies, setSellerReplies] = useState<Record<string, string>>({});
 
   // Revenue & Withdrawal State
-  const [availableBalance, setAvailableBalance] = useState(0);
-  const [totalRevenue, setTotalRevenue] = useState(0);
   const [totalWithdrawn, setTotalWithdrawn] = useState(0);
   const [withdrawals, setWithdrawals] = useState(INITIAL_SELLER_WITHDRAWALS);
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [payoutAccount, setPayoutAccount] = useState('HDFC Bank (A/C ...4819)');
   const [withdrawing, setWithdrawing] = useState(false);
+
+  // Dynamically calculated seller revenue and available payout balance based on payment methods
+  const { totalRevenue, availableBalance } = useMemo(() => {
+    let rev = 2450000;
+    if (Array.isArray(sellerOrders)) {
+      sellerOrders.forEach((o: any) => {
+        if (isPaymentRecognized(o)) {
+          rev += Number(o.amount || o.totalAmount) || 0;
+        }
+      });
+    }
+    const netPayout = rev * 0.9 - totalWithdrawn;
+    return {
+      totalRevenue: rev,
+      availableBalance: Math.max(0, netPayout),
+    };
+  }, [sellerOrders, totalWithdrawn]);
 
   // Sales Reports Period State
   const [reportPeriod, setReportPeriod] = useState<'weekly' | 'monthly' | 'yearly'>('monthly');
@@ -460,6 +477,21 @@ export default function SellerDashboard() {
     toast.error(`Return Request #${reqId} rejected.`);
   };
 
+  const handleUpdateOrderStatus = async (orderId: string, newStatus: string) => {
+    try {
+      await api.orders.updateStatus(orderId, newStatus as any);
+      setSellerOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
+      if (newStatus === 'delivered') {
+        toast.success(`Order #${orderId} delivered! COD financial balance & statements updated.`);
+      } else {
+        toast.success(`Order #${orderId} status updated to "${newStatus}".`);
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to update order status.');
+    }
+  };
+
   const handleRestockReturnedItem = (retItem: typeof INITIAL_RETURNED_STOCK[0]) => {
     setSellerProducts(prev => prev.map(p => p.id === retItem.productId ? { ...p, stock: p.stock + 1 } : p));
     setReturnedStock(prev => prev.filter(r => r.id !== retItem.id));
@@ -667,12 +699,6 @@ export default function SellerDashboard() {
       }
       return p;
     }));
-  };
-
-  const handleUpdateOrderStatus = (orderId: string, newStatus: string) => {
-    api.orders.updateStatus(orderId, newStatus);
-    setSellerOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
-    toast.success(`Order #${orderId} status changed to "${newStatus.toUpperCase()}"!`);
   };
 
   const handlePostSellerReply = (reviewId: string) => {
@@ -1055,37 +1081,53 @@ export default function SellerDashboard() {
                       <th className="px-4 py-3">Product Name</th>
                       <th className="px-4 py-3">Customer</th>
                       <th className="px-4 py-3">Total Paid</th>
+                      <th className="px-4 py-3">Payment Method</th>
+                      <th className="px-4 py-3">Financial Status</th>
                       <th className="px-4 py-3">Order Status</th>
                       <th className="px-4 py-3 text-right">Update Status</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border">
-                    {sellerOrders.map(o => (
-                      <tr key={o.id} className="hover:bg-muted/40 transition-colors">
-                        <td className="px-4 py-3.5 font-mono font-bold text-[#2874F0]">{o.id}</td>
-                        <td className="px-4 py-3.5 font-bold text-foreground">{o.product}</td>
-                        <td className="px-4 py-3.5 text-muted-foreground">{o.customer}</td>
-                        <td className="px-4 py-3.5 font-black text-foreground">{formatPrice(o.amount)}</td>
-                        <td className="px-4 py-3.5">
-                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${STATUS_COLORS[o.status]}`}>
-                            ● {o.status}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3.5 text-right">
-                          <select
-                            value={o.status}
-                            onChange={e => handleUpdateOrderStatus(o.id, e.target.value)}
-                            className="bg-background border border-border rounded-lg px-2.5 py-1 text-xs font-semibold outline-none cursor-pointer"
-                          >
-                            <option value="placed">Placed</option>
-                            <option value="packed">Packed</option>
-                            <option value="shipped">Shipped</option>
-                            <option value="delivered">Delivered</option>
-                            <option value="cancelled">Cancelled</option>
-                          </select>
-                        </td>
-                      </tr>
-                    ))}
+                    {sellerOrders.map(o => {
+                      const isRecognized = isPaymentRecognized(o);
+                      const isCod = (o.paymentMethod || '').toLowerCase().includes('cod');
+                      return (
+                        <tr key={o.id} className="hover:bg-muted/40 transition-colors">
+                          <td className="px-4 py-3.5 font-mono font-bold text-[#2874F0]">{o.id}</td>
+                          <td className="px-4 py-3.5 font-bold text-foreground">{o.productName || o.product}</td>
+                          <td className="px-4 py-3.5 text-muted-foreground">{o.customerName || o.customer}</td>
+                          <td className="px-4 py-3.5 font-black text-foreground">{formatPrice(o.amount)}</td>
+                          <td className="px-4 py-3.5 font-semibold text-xs text-foreground">{o.paymentMethod || 'Prepaid Online'}</td>
+                          <td className="px-4 py-3.5">
+                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                              isRecognized
+                                ? 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300'
+                                : 'bg-amber-100 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300'
+                            }`}>
+                              {isRecognized ? '✓ Statement & Payout Updated' : '⏳ Pending Delivery (COD)'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${STATUS_COLORS[o.status] || 'bg-gray-100 text-gray-600'}`}>
+                              ● {o.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3.5 text-right">
+                            <select
+                              value={o.status}
+                              onChange={e => handleUpdateOrderStatus(o.id, e.target.value)}
+                              className="bg-background border border-border rounded-lg px-2.5 py-1 text-xs font-semibold outline-none cursor-pointer"
+                            >
+                              <option value="placed">Placed</option>
+                              <option value="packed">Packed</option>
+                              <option value="shipped">Shipped</option>
+                              <option value="delivered">Delivered</option>
+                              <option value="cancelled">Cancelled</option>
+                            </select>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

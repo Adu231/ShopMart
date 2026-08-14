@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { BarChart2, Users, Package, TrendingUp, DollarSign, Settings, LogOut, Home, Bell, CheckCircle, XCircle, AlertCircle, Shield, Search, Save, RefreshCw, Lock, Sliders, AlertTriangle, UserX, UserCheck, Trash2, Send, Eye, ShieldAlert, Flag, Wallet, ArrowDownRight, CheckCircle2, User, KeyRound, Building, ShieldCheck, X, Download, FileSpreadsheet, FileText, Tag, Copy, Percent, Plus, Ticket, Calendar, ArrowRight, Upload, Image as ImageIcon, Sparkles, Zap, Clock, LayoutGrid, Edit2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { PRODUCTS } from '@/constants/data';
-import { formatPrice } from '@/lib/utils';
+import { formatPrice, isPaymentRecognized } from '@/lib/utils';
 import { toast } from 'sonner';
 import { api } from '@/services/api';
 
@@ -78,8 +78,6 @@ export default function AdminDashboard() {
   const [activeReportModal, setActiveReportModal] = useState<typeof INITIAL_REPORTS[0] | null>(null);
 
   // Revenue & Withdrawal State
-  const [totalEarned, setTotalEarned] = useState(0);
-  const [availableBalance, setAvailableBalance] = useState(0);
   const [totalWithdrawn, setTotalWithdrawn] = useState(0);
   const [withdrawals, setWithdrawals] = useState(INITIAL_WITHDRAWALS);
   const [withdrawAmount, setWithdrawAmount] = useState('');
@@ -252,6 +250,13 @@ export default function AdminDashboard() {
       }
     });
 
+    // Fetch platform orders for revenue & commission tracking
+    api.orders.getAll().then(res => {
+      if (res && res.success && Array.isArray(res.orders)) {
+        setAdminOrders(res.orders);
+      }
+    });
+
     // Fetch categories
     api.admin.getCategories().then(res => {
       if (res && res.success && Array.isArray(res.categories)) {
@@ -259,6 +264,24 @@ export default function AdminDashboard() {
       }
     });
   }, []);
+
+  const [adminOrders, setAdminOrders] = useState<any[]>([]);
+
+  // Dynamically calculated platform commission & available payout balance based on payment methods
+  const { totalEarned, availableBalance } = useMemo(() => {
+    let earned = 450000;
+    if (Array.isArray(adminOrders)) {
+      adminOrders.forEach((o: any) => {
+        if (isPaymentRecognized(o)) {
+          earned += (Number(o.amount || o.totalAmount) || 0) * 0.1;
+        }
+      });
+    }
+    return {
+      totalEarned: earned,
+      availableBalance: Math.max(0, earned - totalWithdrawn),
+    };
+  }, [adminOrders, totalWithdrawn]);
 
   useEffect(() => {
     try {

@@ -26,3 +26,14 @@ export function getEstimatedDelivery(): string {
   d.setDate(d.getDate() + Math.floor(Math.random() * 3) + 2);
   return d.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' });
 }
+
+export function isPaymentRecognized(order: { paymentMethod?: string; status: string }): boolean {
+  if (!order || order.status === 'cancelled') return false;
+  const pm = (order.paymentMethod || '').toLowerCase();
+  const isCod = pm.includes('cod') || pm.includes('cash on delivery');
+  if (isCod) {
+    return order.status === 'delivered';
+  }
+  return true;
+}
+
