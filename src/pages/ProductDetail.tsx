@@ -11,52 +11,7 @@ import { toast } from 'sonner';
 import LoginRequiredModal from '@/components/modals/LoginRequiredModal';
 import { api } from '@/services/api';
 
-const INITIAL_PRODUCT_REVIEWS = [
-  {
-    id: 'rev-p1',
-    author: 'Priya Sharma',
-    date: '15 Jul 2026',
-    rating: 5,
-    verified: true,
-    title: 'Exquisite Teak Wood Finish & Superior Build!',
-    comment: 'The solid teak wood sectional dining furniture piece is absolutely stunning! The timber quality is premium, rich polish finish, and the doorstep installation team was professional. Highly recommended!',
-    helpfulCount: 18,
-    voted: false,
-  },
-  {
-    id: 'rev-p2',
-    author: 'Rahul Verma',
-    date: '08 Jul 2026',
-    rating: 4,
-    verified: true,
-    title: 'Sturdy Build Quality & Smooth Polish',
-    comment: 'Bought this handcrafted teak wood piece for our living room. Build quality is top-notch, sturdy, and heavy-duty timber. Provides great aesthetic value. Highly recommend WoodNest!',
-    helpfulCount: 9,
-    voted: false,
-  },
-  {
-    id: 'rev-p3',
-    author: 'Anjali Patel',
-    date: '20 Jul 2026',
-    rating: 5,
-    verified: true,
-    title: 'Masterpiece Furniture - Natural Timber Grain',
-    comment: 'The wood grain patterns on this product are breathtaking. Each piece feels truly handcrafted with passion. Sturdy, beautiful, and every guest compliments it when visiting!',
-    helpfulCount: 24,
-    voted: false,
-  },
-  {
-    id: 'rev-p4',
-    author: 'Vikram Singh',
-    date: '25 Jul 2026',
-    rating: 5,
-    verified: true,
-    title: 'Top Notch Premium Wood - Worth Every Rupee',
-    comment: 'Ordered this item for our home setup - incredible build stability and protective polish coating. Best furniture investment of the year!',
-    helpfulCount: 9,
-    voted: false,
-  },
-];
+const INITIAL_PRODUCT_REVIEWS: any[] = [];
 
 export default function ProductDetail() {
   const { id } = useParams<{ id: string }>();
