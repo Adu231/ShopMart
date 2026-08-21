@@ -120,8 +120,8 @@ export default function Login() {
     setError('');
     setCaptchaError(false);
 
-    // Verify CAPTCHA Code
-    if (captchaInput.trim().toLowerCase() !== captchaCode.toLowerCase()) {
+    // Verify CAPTCHA Code (Strict Case-Sensitive)
+    if (captchaInput.trim() !== captchaCode) {
       setCaptchaError(true);
       setError('Security verification failed! Invalid CAPTCHA code. Please enter the exact characters shown in the box.');
       refreshCaptcha();
@@ -333,8 +333,8 @@ export default function Login() {
                   }}
                   required
                   maxLength={6}
-                  placeholder="Enter Code"
-                  className={`w-full bg-white dark:bg-slate-900 border ${captchaError ? 'border-rose-500 ring-2 ring-rose-500/20' : 'border-slate-300 dark:border-slate-700'} rounded-xl px-3.5 py-2.5 text-sm font-mono font-bold tracking-wider text-slate-900 dark:text-white outline-none focus:border-[#2874F0] focus:ring-2 focus:ring-[#2874F0]/30 transition-all uppercase`}
+                  placeholder="Enter code"
+                  className={`w-full bg-white dark:bg-slate-900 border ${captchaError ? 'border-rose-500 ring-2 ring-rose-500/20' : 'border-slate-300 dark:border-slate-700'} rounded-xl px-3.5 py-2.5 text-sm font-mono font-bold tracking-wider text-slate-900 dark:text-white outline-none focus:border-[#2874F0] focus:ring-2 focus:ring-[#2874F0]/30 transition-all`}
                 />
               </div>
 
