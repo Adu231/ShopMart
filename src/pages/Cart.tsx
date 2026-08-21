@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Minus, Plus, Trash2, ShoppingBag, Tag, ArrowRight } from 'lucide-react';
+import { Minus, Plus, Trash2, ShoppingBag, Tag, ArrowRight, X } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
 import { formatPrice } from '@/lib/utils';
@@ -105,7 +105,7 @@ export default function Cart() {
               {appliedCoupon && (
                 <div className="mt-2 flex items-center justify-between bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 text-xs p-2 rounded">
                   <span>"{appliedCoupon.code}" applied — Saving {formatPrice(discount)}</span>
-                  <button onClick={() => setAppliedCoupon(null)} className="hover:text-red-500">✕</button>
+                  <button onClick={() => setAppliedCoupon(null)} className="hover:text-red-500 flex items-center justify-center p-0.5"><X size={14} /></button>
                 </div>
               )}
               <div className="mt-2 flex gap-2 flex-wrap">
@@ -130,7 +130,7 @@ export default function Cart() {
                   <span className="text-foreground">Total Amount</span>
                   <span className="text-foreground">{formatPrice(total)}</span>
                 </div>
-                {discount > 0 && <p className="text-green-600 font-semibold text-xs text-right">You save {formatPrice(discount)} 🎉</p>}
+                {discount > 0 && <p className="text-green-600 font-semibold text-xs text-right">You save {formatPrice(discount)}</p>}
               </div>
               <button onClick={handleCheckout} className="w-full mt-4 bg-[#FB641B] hover:bg-[#e55a18] text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-colors cursor-pointer">
                 Place Order <ArrowRight size={16} />

@@ -116,13 +116,13 @@ export const COUPONS: Coupon[] = [
 ];
 
 export const OFFER_TEXTS = [
-  '🏡 New Home Offer: 10% off on your first order | Code: FIRST10',
-  '🛋️ Sofa Bonanza: Up to 60% off on premium sectionals & recliners',
-  '🚚 Free delivery + free assembly on orders above ₹15,000',
-  '⚡ Flash Sale every day at 12 PM — Save up to 50% on selected furniture',
-  '💳 Extra 5% off with HDFC Credit Cards on orders above ₹20,000',
-  '🌿 Sustainably sourced solid wood furniture — crafted to last generations',
-  '⭐ 100-Night Mattress Trial | No-cost EMI from ₹999/month available',
+  'New Home Offer: 10% off on your first order | Code: FIRST10',
+  'Sofa Bonanza: Up to 60% off on premium sectionals & recliners',
+  'Free delivery + free assembly on orders above ₹15,000',
+  'Flash Sale every day at 12 PM — Save up to 50% on selected furniture',
+  'Extra 5% off with HDFC Credit Cards on orders above ₹20,000',
+  'Sustainably sourced solid wood furniture — crafted to last generations',
+  '100-Night Mattress Trial | No-cost EMI from ₹999/month available',
 ];
 
 export const FLASH_SALE_IDS: string[] = [];

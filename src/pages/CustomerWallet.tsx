@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Wallet, Plus, ArrowUpRight, ArrowDownLeft, ShieldCheck, CreditCard, Landmark, CheckCircle2, History, ChevronRight, AlertCircle, RefreshCw, ExternalLink } from 'lucide-react';
+import { Wallet, Plus, ArrowUpRight, ArrowDownLeft, ShieldCheck, CreditCard, Landmark, CheckCircle2, History, ChevronRight, AlertCircle, RefreshCw, ExternalLink, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { formatPrice, formatDate } from '@/lib/utils';
 import CustomerLayout from '@/components/layout/CustomerLayout';
@@ -351,7 +351,7 @@ export default function CustomerWallet() {
                 <Plus className="text-[#2874F0]" size={18} /> Add Money to WoodNest Wallet
               </h3>
               <button onClick={() => setShowAddMoneyModal(false)} className="text-muted-foreground hover:text-foreground">
-                ✕
+                <X size={18} />
               </button>
             </div>
 
@@ -427,7 +427,7 @@ export default function CustomerWallet() {
                 <Landmark className="text-purple-600" size={18} /> Withdraw Funds to Bank
               </h3>
               <button onClick={() => setShowWithdrawModal(false)} className="text-muted-foreground hover:text-foreground">
-                ✕
+                <X size={18} />
               </button>
             </div>
 

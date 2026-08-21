@@ -1,5 +1,5 @@
 import { useParams, Link } from 'react-router-dom';
-import { CheckCircle, Package, MapPin, Clock, ArrowRight, Home } from 'lucide-react';
+import { CheckCircle, Package, MapPin, Clock, ArrowRight, Home, Check } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import { formatPrice, formatDate } from '@/lib/utils';
 
@@ -51,7 +51,7 @@ export default function OrderSuccess() {
                 {STATUS_STEPS.map((s, i) => (
                   <div key={s} className="flex flex-col items-center z-10">
                     <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs font-bold ${i <= currentStep ? 'bg-green-500 border-green-500 text-white' : 'bg-card border-gray-300 dark:border-gray-600 text-muted-foreground'}`}>
-                      {i <= currentStep ? '✓' : i + 1}
+                      {i <= currentStep ? <Check size={12} /> : i + 1}
                     </div>
                     <span className="text-[9px] text-muted-foreground mt-1 capitalize text-center w-12 leading-tight">{s.replace(/_/g, ' ')}</span>
                   </div>

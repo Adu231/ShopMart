@@ -878,8 +878,8 @@ export default function SellerDashboard() {
           </div>
 
           <div className="space-y-2">
-            <span className="bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 font-bold px-3.5 py-1 rounded-full text-xs border border-amber-200 dark:border-amber-900 inline-block">
-              ⏳ Seller Account Verification Pending
+            <span className="bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 font-bold px-3.5 py-1 rounded-full text-xs border border-amber-200 dark:border-amber-900 inline-flex items-center gap-1.5">
+              <Clock size={12} className="inline" /> Seller Account Verification Pending
             </span>
             <h1 className="text-2xl font-black text-foreground">Super Admin Approval Required</h1>
             <p className="text-xs text-muted-foreground leading-relaxed max-w-md mx-auto">
@@ -1245,7 +1245,7 @@ export default function SellerDashboard() {
                                 ? 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300'
                                 : 'bg-amber-100 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300'
                             }`}>
-                              {isRecognized ? '✓ Statement & Payout Updated' : '⏳ Pending Delivery (COD)'}
+                              {isRecognized ? 'Statement & Payout Updated' : 'Pending Delivery (COD)'}
                             </span>
                           </td>
                           <td className="px-4 py-3.5">
@@ -1683,7 +1683,7 @@ export default function SellerDashboard() {
 
                           <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-border">
                             <span className="text-muted-foreground text-[11px]">
-                              {isApproved ? '✓ Approved! Balance, Admin Commission & User Wallet updated.' : isRejected ? '✕ Request Rejected by Seller.' : '● Action Required: Click approve to execute financial reversals & refund.'}
+                              {isApproved ? 'Approved! Balance, Admin Commission & User Wallet updated.' : isRejected ? 'Request Rejected by Seller.' : '● Action Required: Click approve to execute financial reversals & refund.'}
                             </span>
 
                             {isPending && (
@@ -1976,7 +1976,7 @@ export default function SellerDashboard() {
               <div className="bg-card p-5 rounded-2xl border border-border space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
                   <div>
-                    <h3 className="font-extrabold text-base text-foreground">4.8 / 5.0 ★ Store Rating</h3>
+                    <h3 className="font-extrabold text-base text-foreground flex items-center gap-1.5">4.8 / 5.0 <Star size={16} className="fill-amber-400 text-amber-400 inline" /> Store Rating</h3>
                     <p className="text-xs text-muted-foreground">Based on {reviewsList.length} verified customer product reviews</p>
                   </div>
                   <div className="flex gap-2">
@@ -1999,7 +1999,7 @@ export default function SellerDashboard() {
                     <div key={r.id} className="py-4 space-y-2 text-xs">
                       <div className="flex justify-between items-center">
                         <span className="font-bold text-foreground text-sm">{r.customer}</span>
-                        <span className="text-amber-500 font-bold">{r.rating} ★</span>
+                        <span className="text-amber-500 font-bold flex items-center gap-1">{r.rating} <Star size={14} className="fill-amber-400 text-amber-400 inline" /></span>
                       </div>
                       <p className="text-muted-foreground">{r.comment}</p>
                       {r.sellerReply && (

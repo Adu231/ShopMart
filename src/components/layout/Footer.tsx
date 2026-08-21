@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Facebook, Twitter, Instagram, Youtube, Mail, Phone, MapPin } from 'lucide-react';
+import { Facebook, Twitter, Instagram, Youtube, Mail, Phone, MapPin, Heart } from 'lucide-react';
 
 const ABOUT_LINKS = [
   { label: 'About Us', to: '/about' },
@@ -136,7 +136,7 @@ export default function Footer() {
 
       <div className="border-t border-gray-700 py-4 text-xs text-gray-600">
         <div className="max-w-7xl mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-2">
-          <p>© 2026 WoodNest Pvt. Ltd. All rights reserved. Crafted with ❤️ in India</p>
+          <p className="flex items-center gap-1">© 2026 WoodNest Pvt. Ltd. All rights reserved. Crafted with <Heart size={12} className="text-red-500 fill-current inline" /> in India</p>
           <div className="flex gap-4">
             {BOTTOM_LINKS.map(item => (
               <Link

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Package, ChevronRight, Truck, CheckCircle2, AlertCircle, X, Star, XCircle, Clock, ShieldCheck, MapPin, Send, RotateCcw, RefreshCw, FileText, CreditCard, ExternalLink, ArrowRight, Upload, Image as ImageIcon } from 'lucide-react';
+import { Package, ChevronRight, Truck, CheckCircle2, AlertCircle, X, Star, XCircle, Clock, ShieldCheck, MapPin, Send, RotateCcw, RefreshCw, FileText, CreditCard, ExternalLink, ArrowRight, Upload, Image as ImageIcon, Check } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
 import { formatPrice, formatDate } from '@/lib/utils';
@@ -144,7 +144,7 @@ export default function OrderHistory() {
     }
 
     setReviewedProducts(prev => ({ ...prev, [reviewModalProduct.id]: true }));
-    toast.success(`Thank you! Your ${reviewRating}★ review for "${reviewModalProduct.name}" has been published.`);
+    toast.success(`Thank you! Your ${reviewRating}-star review for "${reviewModalProduct.name}" has been published.`);
     setReviewModalProduct(null);
     setReviewRating(5);
     setReviewComment('');
@@ -265,7 +265,7 @@ export default function OrderHistory() {
                   {/* Clean Bottom Bar prompting click for details */}
                   <div className="flex items-center justify-between pt-3 border-t border-border text-xs">
                     <p className="text-muted-foreground text-[11px] font-medium flex items-center gap-1">
-                      📍 Destination: <strong className="text-foreground">{city}, {state}</strong>
+                      <MapPin size={13} className="text-[#2874F0]" /> Destination: <strong className="text-foreground">{city}, {state}</strong>
                     </p>
 
                     <span className="text-[#2874F0] font-bold text-xs flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
@@ -352,7 +352,7 @@ export default function OrderHistory() {
                             }`}
                           >
                             <Star size={11} className={hasReviewed ? 'fill-emerald-600' : 'fill-white'} />
-                            {hasReviewed ? 'Reviewed ✓' : 'Write Review'}
+                            {hasReviewed ? 'Reviewed' : 'Write Review'}
                           </button>
                         )}
                       </div>
@@ -604,7 +604,7 @@ export default function OrderHistory() {
                           <div className={`absolute -left-[31px] top-0.5 w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${
                             isDone ? 'bg-[#2874F0] text-white shadow-sm' : 'bg-muted text-muted-foreground border border-border'
                           }`}>
-                            {isDone ? '✓' : i + 1}
+                            {isDone ? <Check size={10} /> : i + 1}
                           </div>
                           <div>
                             <p className={`font-bold text-xs ${isCurrent ? 'text-[#2874F0]' : isDone ? 'text-foreground' : 'text-muted-foreground'}`}>

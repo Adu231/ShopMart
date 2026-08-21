@@ -1,5 +1,21 @@
 import { Link } from 'react-router-dom';
 import { BRAND_NAMES } from '@/constants/data';
+import {
+  Armchair,
+  Sofa,
+  Archive,
+  DoorClosed,
+  Recycle,
+  Home,
+  Trees,
+  Bed,
+  Leaf,
+  Sparkles,
+  Moon,
+  Briefcase,
+  Tag,
+  LucideIcon
+} from 'lucide-react';
 
 const brandStyles: Record<string, string> = {
   'Urban Ladder': 'bg-orange-50 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300',
@@ -16,19 +32,19 @@ const brandStyles: Record<string, string> = {
   'Featherlite': 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300',
 };
 
-const brandIcons: Record<string, string> = {
-  'Urban Ladder': '🪑',
-  'Pepperfry': '🛋️',
-  'Nilkamal': '🗄️',
-  'Godrej Interio': '🚪',
-  'Durian': '♻️',
-  'IKEA': '🏠',
-  'Wooden Street': '🪵',
-  'Wakefit': '🛏️',
-  'HomeTown': '🌿',
-  'Fabindia': '✨',
-  'Sleepyhead': '💤',
-  'Featherlite': '💼',
+const brandIcons: Record<string, LucideIcon> = {
+  'Urban Ladder': Armchair,
+  'Pepperfry': Sofa,
+  'Nilkamal': Archive,
+  'Godrej Interio': DoorClosed,
+  'Durian': Recycle,
+  'IKEA': Home,
+  'Wooden Street': Trees,
+  'Wakefit': Bed,
+  'HomeTown': Leaf,
+  'Fabindia': Sparkles,
+  'Sleepyhead': Moon,
+  'Featherlite': Briefcase,
 };
 
 export default function BrandSection() {
@@ -37,16 +53,19 @@ export default function BrandSection() {
       <h2 className="text-lg font-bold text-foreground mb-1">Top Furniture Brands</h2>
       <p className="text-sm text-muted-foreground mb-4">Shop from India's most trusted furniture brands</p>
       <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-12 gap-3">
-        {BRAND_NAMES.map(name => (
-          <Link
-            key={name}
-            to={`/products?brand=${encodeURIComponent(name)}`}
-            className={`${brandStyles[name] || 'bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300'} rounded-xl p-3 flex flex-col items-center justify-center gap-1.5 hover:shadow-md transition-all duration-200 hover:scale-105 aspect-square col-span-1 border border-transparent hover:border-current/20`}
-          >
-            <span className="text-xl">{brandIcons[name] || '🏷️'}</span>
-            <span className="font-semibold text-[11px] text-center leading-tight">{name}</span>
-          </Link>
-        ))}
+        {BRAND_NAMES.map(name => {
+          const IconComponent = brandIcons[name] || Tag;
+          return (
+            <Link
+              key={name}
+              to={`/products?brand=${encodeURIComponent(name)}`}
+              className={`${brandStyles[name] || 'bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300'} rounded-xl p-3 flex flex-col items-center justify-center gap-1.5 hover:shadow-md transition-all duration-200 hover:scale-105 aspect-square col-span-1 border border-transparent hover:border-current/20`}
+            >
+              <IconComponent className="w-5 h-5" />
+              <span className="font-semibold text-[11px] text-center leading-tight">{name}</span>
+            </Link>
+          );
+        })}
       </div>
     </section>
   );

@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { SlidersHorizontal, X, ChevronDown, ChevronUp, Grid } from 'lucide-react';
+import { SlidersHorizontal, X, ChevronDown, ChevronUp, Grid, Star } from 'lucide-react';
 import { PRODUCTS, CATEGORIES, BRAND_NAMES } from '@/constants/data';
 import ProductCard from '@/components/features/ProductCard';
 import { api } from '@/services/api';
@@ -180,7 +180,7 @@ export default function Products() {
           {[4, 3, 2].map(r => (
             <label key={r} className="flex items-center gap-2 cursor-pointer group">
               <input type="radio" name="rating" checked={minRating === r} onChange={() => setMinRating(r)} className="rounded-full" />
-              <span className="text-sm text-foreground group-hover:text-[#2874F0]">{r}★ & above</span>
+              <span className="text-sm text-foreground group-hover:text-[#2874F0] flex items-center gap-1">{r} <Star size={12} className="fill-amber-400 text-amber-400 inline" /> & above</span>
             </label>
           ))}
         </div>

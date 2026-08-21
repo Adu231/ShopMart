@@ -33,7 +33,7 @@ export default function Newsletter() {
         {subscribed ? (
           <div className="flex items-center justify-center gap-2 bg-white/20 rounded-full px-6 py-3">
             <Check size={18} className="text-green-300" />
-            <span className="font-medium">You're subscribed! 🎉</span>
+            <span className="font-medium">You're subscribed!</span>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-2 max-w-md mx-auto">

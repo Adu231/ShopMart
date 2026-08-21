@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Check, MapPin, CreditCard, Package, ChevronRight, QrCode, Landmark, Wallet, ShieldCheck, Lock, Loader2, AlertCircle, Info, DollarSign } from 'lucide-react';
+import { Check, MapPin, CreditCard, Package, ChevronRight, QrCode, Landmark, Wallet, ShieldCheck, Lock, Loader2, AlertCircle, Info, DollarSign, X } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
 import { formatPrice, getEstimatedDelivery } from '@/lib/utils';
@@ -287,7 +287,7 @@ export default function Checkout() {
 
       {selectedAddress && (
         <div className="bg-muted p-3.5 rounded-xl mb-4 text-xs space-y-0.5 border border-border">
-          <p className="font-bold text-foreground flex items-center gap-1">📍 Delivery Address:</p>
+          <p className="font-bold text-foreground flex items-center gap-1"><MapPin size={14} className="text-[#2874F0]" /> Delivery Address:</p>
           <p className="text-muted-foreground">{selectedAddress.name} ({selectedAddress.phone})</p>
           <p className="text-muted-foreground">{selectedAddress.street}, {selectedAddress.city}, {selectedAddress.state} - {selectedAddress.pincode}</p>
         </div>
@@ -314,7 +314,7 @@ export default function Checkout() {
           onClick={handleInitiateOrder}
           className="flex-1 bg-[#FB641B] hover:bg-[#e55a18] text-white font-extrabold py-3.5 rounded-xl flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-lg text-sm"
         >
-          {paymentMethod === 'cod' || paymentMethod === 'wallet' ? 'Place Order 🎉' : 'Proceed to Payment Gateway →'}
+          {paymentMethod === 'cod' || paymentMethod === 'wallet' ? 'Place Order' : 'Proceed to Payment Gateway →'}
         </button>
       </div>
     </div>,
@@ -380,7 +380,7 @@ export default function Checkout() {
                 <Lock className="text-[#2874F0]" size={18} /> Confirm {paymentMethod.toUpperCase()} Payment
               </h3>
               <button onClick={() => setShowPaymentModal(false)} className="text-muted-foreground hover:text-foreground">
-                ✕
+                <X size={18} />
               </button>
             </div>
 

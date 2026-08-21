@@ -2668,7 +2668,7 @@ export default function AdminDashboard() {
               <div className="flex items-center justify-between text-xs pt-1">
                 <span className="font-semibold text-muted-foreground">Warning Sent:</span>
                 <span className={`font-bold ${activeReportModal.warningSent ? 'text-emerald-600' : 'text-amber-600'}`}>
-                  {activeReportModal.warningSent ? '✓ Warning Issued' : '✕ No Warning Sent Yet'}
+                  {activeReportModal.warningSent ? 'Warning Issued' : 'No Warning Sent Yet'}
                 </span>
               </div>
 
